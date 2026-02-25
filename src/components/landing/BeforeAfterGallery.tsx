@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import CompositeBeforeAfterSlider from "./CompositeBeforeAfterSlider";
-import { beforeAfterComposites, exampleCategories } from "@/data/landingExamples";
+import BeforeAfterSlider from "./BeforeAfterSlider";
+import { beforeAfterExamples, exampleCategories } from "@/data/landingExamples";
 
 const BeforeAfterGallery = () => {
   const [activeFilter, setActiveFilter] = useState("todos");
 
   const filtered = activeFilter === "todos"
-    ? beforeAfterComposites
-    : beforeAfterComposites.filter((e) => e.category === activeFilter);
+    ? beforeAfterExamples
+    : beforeAfterExamples.filter((e) => e.category === activeFilter);
 
   return (
     <section id="antes-depois" className="py-24">
@@ -57,10 +57,14 @@ const BeforeAfterGallery = () => {
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
             >
-              <CompositeBeforeAfterSlider
-                compositeSrc={example.compositeSrc}
-                title={example.title}
+              <BeforeAfterSlider
+                afterSrc={example.afterSrc}
+                beforeSrc={example.beforeSrc}
+                degradeType={example.degradeType}
               />
+              <p className="text-sm font-body text-muted-foreground mt-2 text-center">
+                {example.title}
+              </p>
             </motion.div>
           ))}
         </div>

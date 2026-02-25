@@ -1,24 +1,46 @@
-import { useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useState, useRef, useCallback, useMemo } from "react";
+
+export type DegradeType = "scratches" | "dark" | "blur" | "torn" | "bw" | "lowres";
 
 interface BeforeAfterSliderProps {
-  beforeSrc: string;
   afterSrc: string;
+  beforeSrc?: string;
   beforeLabel?: string;
   afterLabel?: string;
+  degradeType?: DegradeType;
   className?: string;
 }
 
+const DEGRADE_FILTERS: Record<DegradeType, string> = {
+  scratches: "grayscale(0.3) sepia(0.4) contrast(0.8) brightness(0.85)",
+  dark: "brightness(0.3) contrast(1.3) sepia(0.15)",
+  blur: "blur(2px) grayscale(0.2) brightness(0.9)",
+  torn: "grayscale(0.5) sepia(0.3) contrast(0.85)",
+  bw: "grayscale(1) contrast(0.9) sepia(0.15)",
+  lowres: "blur(3px) brightness(0.95)",
+};
+
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E")`;
+
 const BeforeAfterSlider = ({
-  beforeSrc,
   afterSrc,
+  beforeSrc,
   beforeLabel = "Antes",
   afterLabel = "Depois",
+  degradeType = "scratches",
   className = "",
 }: BeforeAfterSliderProps) => {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+
+  const useFallback = !beforeSrc;
+  const beforeImage = beforeSrc || afterSrc;
+
+  const beforeStyle = useMemo(() => {
+    if (!useFallback) return {};
+    return { filter: DEGRADE_FILTERS[degradeType] };
+  }, [useFallback, degradeType]);
 
   const updatePosition = useCallback((clientX: number) => {
     if (!containerRef.current) return;
@@ -50,25 +72,6 @@ const BeforeAfterSlider = ({
     [updatePosition]
   );
 
-  // Fallback: if no images, show elegant CTA card
-  if (!beforeSrc || !afterSrc) {
-    return (
-      <div className={`relative overflow-hidden rounded-xl ${className}`}>
-        <div className="w-full aspect-[4/3] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex flex-col items-center justify-center gap-4 p-6">
-          <p className="text-lg font-display font-semibold text-foreground text-center">
-            Veja o resultado em segundos
-          </p>
-          <Link
-            to="/pricing"
-            className="inline-flex items-center px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
-          >
-            Começar agora
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
@@ -81,7 +84,7 @@ const BeforeAfterSlider = ({
       <div className="relative w-full aspect-[4/3]">
         {/* After image (full width, background) */}
         <div className="absolute inset-0">
-          <img src={afterSrc} alt={afterLabel} className="w-full h-full object-cover" />
+          <img src={afterSrc} alt={afterLabel} className="w-full h-full object-cover" loading="lazy" />
         </div>
 
         {/* Before image (clipped) */}
@@ -89,14 +92,36 @@ const BeforeAfterSlider = ({
           className="absolute inset-0"
           style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
         >
-          <img src={beforeSrc} alt={beforeLabel} className="w-full h-full object-cover" />
+          <img
+            src={beforeImage}
+            alt={beforeLabel}
+            className="w-full h-full object-cover"
+            style={beforeStyle}
+            loading="lazy"
+          />
+          {/* Noise overlay for fallback mode */}
+          {useFallback && (
+            <div
+              className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-60"
+              style={{ backgroundImage: NOISE_SVG }}
+            />
+          )}
+          {/* Vignette for fallback */}
+          {useFallback && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
+              }}
+            />
+          )}
         </div>
 
         {/* Labels */}
-        <span className="absolute top-3 left-3 text-xs font-body font-semibold bg-background/80 text-foreground px-2 py-1 rounded-md backdrop-blur-sm">
+        <span className="absolute top-3 left-3 text-xs font-body font-semibold bg-background/80 text-foreground px-2 py-1 rounded-md backdrop-blur-sm z-20">
           {beforeLabel}
         </span>
-        <span className="absolute top-3 right-3 text-xs font-body font-semibold bg-primary/90 text-primary-foreground px-2 py-1 rounded-md backdrop-blur-sm">
+        <span className="absolute top-3 right-3 text-xs font-body font-semibold bg-primary/90 text-primary-foreground px-2 py-1 rounded-md backdrop-blur-sm z-20">
           {afterLabel}
         </span>
 

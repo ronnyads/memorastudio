@@ -1,9 +1,8 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { themes } from "@/data/landingExamples";
-import { themeComposites } from "@/data/landingExamples";
-import CompositeBeforeAfterSlider from "./CompositeBeforeAfterSlider";
+import { themes, themeExamples } from "@/data/landingExamples";
+import BeforeAfterSlider from "./BeforeAfterSlider";
 
 const ThemesGallery = () => {
   return (
@@ -26,9 +25,9 @@ const ThemesGallery = () => {
           </p>
         </motion.div>
 
-        {/* Theme composites with sliders */}
+        {/* Theme sliders */}
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
-          {themeComposites.map((theme, i) => (
+          {themeExamples.map((theme, i) => (
             <motion.div
               key={theme.id}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -37,10 +36,12 @@ const ThemesGallery = () => {
               transition={{ delay: i * 0.1 }}
               className="bg-secondary/30 rounded-xl p-4 border border-border/50"
             >
-              <CompositeBeforeAfterSlider
-                compositeSrc={theme.compositeSrc}
-                leftLabel="Original"
-                rightLabel="Arte"
+              <BeforeAfterSlider
+                afterSrc={theme.afterSrc}
+                beforeSrc={theme.beforeSrc}
+                beforeLabel="Original"
+                afterLabel="Arte"
+                degradeType="bw"
               />
               <div className="flex items-center justify-between mt-3">
                 <h3 className="font-display text-base font-semibold">{theme.title}</h3>
