@@ -1,27 +1,35 @@
-export interface LandingExample {
-  id: number;
-  category: string;
-  beforeSrc: string;
-  afterSrc: string;
-  label: string;
+// ── Composite model (new) ──────────────────────────────────
+
+export interface CompositeExample {
+  id: string;
+  title: string;
+  compositeSrc: string;
+  category?: string;
 }
 
-export const heroRotationExamples = [
-  { id: "01", title: "Riscos e manchas", category: "riscos", before: "/demo/before_01.jpg", after: "/demo/after_01.jpg" },
-  { id: "02", title: "Foto escura", category: "escura", before: "/demo/before_02.jpg", after: "/demo/after_02.jpg" },
-  { id: "03", title: "Desfoque", category: "desfoque", before: "/demo/before_03.jpg", after: "/demo/after_03.jpg" },
+export const heroComposites: CompositeExample[] = [
+  { id: "restore_01", title: "Riscos e manchas", compositeSrc: "/demo/composites/restore_01_composite.jpg" },
+  { id: "restore_02", title: "Foto escura", compositeSrc: "/demo/composites/restore_02_composite.jpg" },
+  { id: "restore_03", title: "Desfoque", compositeSrc: "/demo/composites/restore_03_composite.jpg" },
 ];
 
-export const heroBeforeAfter = heroRotationExamples[0];
-
-export const landingExamples: LandingExample[] = [
-  { id: 1, category: "riscos", beforeSrc: "/demo/before_01.jpg", afterSrc: "/demo/after_01.jpg", label: "Foto com riscos profundos" },
-  { id: 2, category: "escura", beforeSrc: "/demo/before_02.jpg", afterSrc: "/demo/after_02.jpg", label: "Foto escurecida pelo tempo" },
-  { id: 3, category: "desfoque", beforeSrc: "/demo/before_03.jpg", afterSrc: "/demo/after_03.jpg", label: "Foto desfocada restaurada" },
-  { id: 4, category: "colorizacao", beforeSrc: "/demo/before_01.jpg", afterSrc: "/demo/after_01.jpg", label: "Colorização de foto P&B" },
-  { id: 5, category: "hd4k", beforeSrc: "/demo/before_03.jpg", afterSrc: "/demo/after_03.jpg", label: "Upscale HD para impressão" },
-  { id: 6, category: "riscos", beforeSrc: "/demo/before_02.jpg", afterSrc: "/demo/after_02.jpg", label: "Restauração de foto rasgada" },
+export const beforeAfterComposites: CompositeExample[] = [
+  { id: "restore_01", title: "Riscos e manchas", compositeSrc: "/demo/composites/restore_01_composite.jpg", category: "riscos" },
+  { id: "restore_02", title: "Foto escura", compositeSrc: "/demo/composites/restore_02_composite.jpg", category: "escura" },
+  { id: "restore_03", title: "Desfoque", compositeSrc: "/demo/composites/restore_03_composite.jpg", category: "desfoque" },
+  { id: "restore_04", title: "Foto rasgada", compositeSrc: "/demo/composites/restore_04_composite.jpg", category: "riscos" },
+  { id: "restore_05", title: "P&B → Colorizada", compositeSrc: "/demo/composites/restore_05_composite.jpg", category: "colorizacao" },
+  { id: "restore_06", title: "Baixa resolução → HD", compositeSrc: "/demo/composites/restore_06_composite.jpg", category: "hd4k" },
 ];
+
+export const themeComposites: CompositeExample[] = [
+  { id: "ice_princess", title: "Princesa do Gelo", compositeSrc: "/demo/composites/theme_ice_princess.jpg" },
+  { id: "astronauta", title: "Astronauta", compositeSrc: "/demo/composites/theme_astronauta.jpg" },
+  { id: "safari", title: "Safari", compositeSrc: "/demo/composites/theme_safari.jpg" },
+  { id: "unicorn", title: "Unicórnio", compositeSrc: "/demo/composites/theme_unicorn.jpg" },
+];
+
+// ── Legacy exports (kept for compat) ───────────────────────
 
 export const exampleCategories = [
   { id: "todos", label: "Todos" },

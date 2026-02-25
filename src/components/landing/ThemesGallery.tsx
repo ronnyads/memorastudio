@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { themes } from "@/data/landingExamples";
+import { themeComposites } from "@/data/landingExamples";
+import CompositeBeforeAfterSlider from "./CompositeBeforeAfterSlider";
 
 const ThemesGallery = () => {
   return (
@@ -24,6 +26,33 @@ const ThemesGallery = () => {
           </p>
         </motion.div>
 
+        {/* Theme composites with sliders */}
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
+          {themeComposites.map((theme, i) => (
+            <motion.div
+              key={theme.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-secondary/30 rounded-xl p-4 border border-border/50"
+            >
+              <CompositeBeforeAfterSlider
+                compositeSrc={theme.compositeSrc}
+                leftLabel="Original"
+                rightLabel="Arte"
+              />
+              <div className="flex items-center justify-between mt-3">
+                <h3 className="font-display text-base font-semibold">{theme.title}</h3>
+                <Button variant="gold-outline" size="sm" className="text-xs" asChild>
+                  <Link to={`/pricing?theme=${theme.id}`}>Quero esse tema</Link>
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Remaining themes as emoji cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
           {themes.map((theme, i) => (
             <motion.div
