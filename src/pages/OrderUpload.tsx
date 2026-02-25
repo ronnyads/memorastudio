@@ -25,9 +25,12 @@ const OrderUpload = () => {
   const [dragOver, setDragOver] = useState(false);
 
   // Restoration briefing
-  const [intensity, setIntensity] = useState("natural");
-  const [removeSpots, setRemoveSpots] = useState(false);
-  const [colorize, setColorize] = useState(false);
+  const [fidelity, setFidelity] = useState("maxima");
+  const [removeSpots, setRemoveSpots] = useState(true);
+  const [reduceNoise, setReduceNoise] = useState(true);
+  const [recoverColors, setRecoverColors] = useState(false);
+  const [improveSharpness, setImproveSharpness] = useState(true);
+  const [upscaleHD, setUpscaleHD] = useState(false);
   const [briefing, setBriefing] = useState("");
 
   // HD/4K briefing
@@ -210,36 +213,80 @@ const OrderUpload = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-5">
+              <div className="space-y-5">
+                  {/* Fidelity Level */}
                   <div className="space-y-3">
-                    <Label className="font-body text-sm">Intensidade da restauração</Label>
-                    <RadioGroup value={intensity} onValueChange={setIntensity} className="flex gap-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="natural" id="natural" />
-                        <Label htmlFor="natural" className="font-body text-sm cursor-pointer">Natural</Label>
+                    <Label className="font-body text-sm font-semibold">Nível de fidelidade</Label>
+                    <RadioGroup value={fidelity} onValueChange={setFidelity} className="flex flex-col gap-3">
+                      <div className="flex items-start space-x-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                        <RadioGroupItem value="maxima" id="maxima" className="mt-0.5" />
+                        <div>
+                          <Label htmlFor="maxima" className="font-body text-sm font-medium cursor-pointer">
+                            🔒 Fidelidade Máxima <span className="text-xs text-primary ml-1">(recomendado)</span>
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Preserva fielmente rosto, traços e identidade. Restauração conservadora e natural.
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="forte" id="forte" />
-                        <Label htmlFor="forte" className="font-body text-sm cursor-pointer">Forte</Label>
+                      <div className="flex items-start space-x-3 p-3 rounded-lg border border-border">
+                        <RadioGroupItem value="aprimorar" id="aprimorar" className="mt-0.5" />
+                        <div>
+                          <Label htmlFor="aprimorar" className="font-body text-sm font-medium cursor-pointer">
+                            ✨ Aprimorar leve
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Permite melhorias sutis além da restauração (suavização, realce).
+                          </p>
+                        </div>
                       </div>
                     </RadioGroup>
                   </div>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="spots" checked={removeSpots} onCheckedChange={(v) => setRemoveSpots(!!v)} />
-                      <Label htmlFor="spots" className="font-body text-sm cursor-pointer">Remover manchas e riscos</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="colorize" checked={colorize} onCheckedChange={(v) => setColorize(!!v)} />
-                      <Label htmlFor="colorize" className="font-body text-sm cursor-pointer">Colorizar foto P&B</Label>
+
+                  {/* Restoration Checklist */}
+                  <div className="space-y-3">
+                    <Label className="font-body text-sm font-semibold">O que restaurar</Label>
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="spots" checked={removeSpots} onCheckedChange={(v) => setRemoveSpots(!!v)} />
+                        <Label htmlFor="spots" className="font-body text-sm cursor-pointer">Remover riscos, manchas e rasgos</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="noise" checked={reduceNoise} onCheckedChange={(v) => setReduceNoise(!!v)} />
+                        <Label htmlFor="noise" className="font-body text-sm cursor-pointer">Reduzir ruído/granulação (sem plastificar)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="colors" checked={recoverColors} onCheckedChange={(v) => setRecoverColors(!!v)} />
+                        <Label htmlFor="colors" className="font-body text-sm cursor-pointer">Recuperar cores (correção natural)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="sharpness" checked={improveSharpness} onCheckedChange={(v) => setImproveSharpness(!!v)} />
+                        <Label htmlFor="sharpness" className="font-body text-sm cursor-pointer">Melhorar nitidez (leve)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox id="upscale" checked={upscaleHD} onCheckedChange={(v) => setUpscaleHD(!!v)} />
+                        <Label htmlFor="upscale" className="font-body text-sm cursor-pointer">Upscale HD/4K (se incluído no plano)</Label>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Identity Notice */}
+                  {fidelity === "maxima" && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground font-body leading-relaxed">
+                        <span className="font-semibold text-foreground">🔒 Modo Fidelidade Máxima:</span>{" "}
+                        Traços faciais, idade, expressão e características naturais serão preservados exatamente. 
+                        Nenhuma alteração criativa será aplicada — apenas restauração e correção.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label className="font-body text-sm">Instruções adicionais</Label>
                     <Textarea
                       value={briefing}
                       onChange={(e) => setBriefing(e.target.value)}
-                      placeholder="Descreva o que deseja: detalhes específicos, áreas de foco..."
+                      placeholder="Descreva detalhes específicos, áreas de foco..."
                       className="bg-secondary border-border min-h-[80px]"
                     />
                   </div>
