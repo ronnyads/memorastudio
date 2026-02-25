@@ -8,7 +8,11 @@ import { useState, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { themes } from "@/data/landingExamples";
 
 const OrderUpload = () => {
   const { id } = useParams();
@@ -19,9 +23,27 @@ const OrderUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  // Restoration briefing
+  const [intensity, setIntensity] = useState("natural");
+  const [removeSpots, setRemoveSpots] = useState(false);
+  const [colorize, setColorize] = useState(false);
   const [briefing, setBriefing] = useState("");
 
+  // HD/4K briefing
+  const [usage, setUsage] = useState("");
+
+  // Theme briefing
+  const [themeName, setThemeName] = useState(searchParams.get("theme") || "");
+  const [personName, setPersonName] = useState("");
+  const [age, setAge] = useState("");
+  const [date, setDate] = useState("");
+  const [colors, setColors] = useState("");
+  const [phrase, setPhrase] = useState("");
+  const [format, setFormat] = useState("story");
+
   const isTheme = product.toLowerCase().includes("temática") || product.toLowerCase().includes("tema");
+  const isHD = product.toLowerCase().includes("hd") || product.toLowerCase().includes("4k");
 
   const handleFile = useCallback((f: File) => {
     if (!f.type.startsWith("image/")) {
@@ -111,37 +133,114 @@ const OrderUpload = () => {
               </h3>
 
               {isTheme ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="font-body text-sm">Nome</Label>
-                    <Input placeholder="Nome da pessoa" className="bg-secondary border-border" />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Tema</Label>
+                      <Select value={themeName} onValueChange={setThemeName}>
+                        <SelectTrigger className="bg-secondary border-border">
+                          <SelectValue placeholder="Selecione o tema" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {themes.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.emoji} {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Formato</Label>
+                      <Select value={format} onValueChange={setFormat}>
+                        <SelectTrigger className="bg-secondary border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="story">Story (1080x1920)</SelectItem>
+                          <SelectItem value="a4">A4 (impressão)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Nome</Label>
+                      <Input value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="Nome da pessoa" className="bg-secondary border-border" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Idade</Label>
+                      <Input value={age} onChange={(e) => setAge(e.target.value)} placeholder="Ex: 5 anos" className="bg-secondary border-border" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Data</Label>
+                      <Input value={date} onChange={(e) => setDate(e.target.value)} placeholder="Ex: 15/03/2026" className="bg-secondary border-border" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-body text-sm">Cores</Label>
+                      <Input value={colors} onChange={(e) => setColors(e.target.value)} placeholder="Ex: Rosa e dourado" className="bg-secondary border-border" />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-body text-sm">Idade</Label>
-                    <Input placeholder="Ex: 5 anos" className="bg-secondary border-border" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-body text-sm">Tema</Label>
-                    <Input placeholder="Ex: Princesas, Super-heróis" className="bg-secondary border-border" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-body text-sm">Cores</Label>
-                    <Input placeholder="Ex: Rosa e dourado" className="bg-secondary border-border" />
-                  </div>
-                  <div className="col-span-2 space-y-2">
                     <Label className="font-body text-sm">Frase / Texto</Label>
-                    <Input placeholder="Ex: Feliz Aniversário!" className="bg-secondary border-border" />
+                    <Input value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="Ex: Feliz Aniversário!" className="bg-secondary border-border" />
                   </div>
                 </div>
-              ) : (
+              ) : isHD ? (
                 <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="font-body text-sm">Para qual uso?</Label>
+                    <Select value={usage} onValueChange={setUsage}>
+                      <SelectTrigger className="bg-secondary border-border">
+                        <SelectValue placeholder="Selecione o uso" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="quadro">Quadro / Moldura</SelectItem>
+                        <SelectItem value="album">Álbum de fotos</SelectItem>
+                        <SelectItem value="impressao">Impressão geral</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label className="font-body text-sm">Instruções adicionais</Label>
                     <Textarea
                       value={briefing}
                       onChange={(e) => setBriefing(e.target.value)}
-                      placeholder="Descreva o que deseja: intensidade da restauração, remoção de manchas específicas, colorização..."
-                      className="bg-secondary border-border min-h-[100px]"
+                      placeholder="Algo mais que devemos saber?"
+                      className="bg-secondary border-border min-h-[80px]"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    <Label className="font-body text-sm">Intensidade da restauração</Label>
+                    <RadioGroup value={intensity} onValueChange={setIntensity} className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="natural" id="natural" />
+                        <Label htmlFor="natural" className="font-body text-sm cursor-pointer">Natural</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="forte" id="forte" />
+                        <Label htmlFor="forte" className="font-body text-sm cursor-pointer">Forte</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="spots" checked={removeSpots} onCheckedChange={(v) => setRemoveSpots(!!v)} />
+                      <Label htmlFor="spots" className="font-body text-sm cursor-pointer">Remover manchas e riscos</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="colorize" checked={colorize} onCheckedChange={(v) => setColorize(!!v)} />
+                      <Label htmlFor="colorize" className="font-body text-sm cursor-pointer">Colorizar foto P&B</Label>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-body text-sm">Instruções adicionais</Label>
+                    <Textarea
+                      value={briefing}
+                      onChange={(e) => setBriefing(e.target.value)}
+                      placeholder="Descreva o que deseja: detalhes específicos, áreas de foco..."
+                      className="bg-secondary border-border min-h-[80px]"
                     />
                   </div>
                 </div>
