@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <filter id="heavyBlur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="6"/>
+      <feColorMatrix type="matrix" values="0.7 0 0 0 0.05
+                                            0 0.65 0 0 0.05
+                                            0 0 0.6 0 0.05
+                                            0 0 0 1 0"/>
+    </filter>
+    <filter id="grain3" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+      <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply"/>
+    </filter>
+  </defs>
+
+  <!-- Blurred family group scene -->
+  <rect width="800" height="600" fill="#B0A898"/>
+
+  <g filter="url(#heavyBlur)">
+    <!-- Background -->
+    <rect x="0" y="0" width="800" height="300" fill="#A0C0D0"/>
+    <rect x="0" y="300" width="800" height="300" fill="#90A080"/>
+
+    <!-- Person 1 -->
+    <ellipse cx="280" cy="220" rx="45" ry="55" fill="#D4B896"/>
+    <rect x="240" y="270" width="80" height="150" rx="10" fill="#6080A0"/>
+
+    <!-- Person 2 -->
+    <ellipse cx="400" cy="200" rx="50" ry="60" fill="#D0B490"/>
+    <rect x="355" y="255" width="90" height="160" rx="10" fill="#805040"/>
+
+    <!-- Person 3 -->
+    <ellipse cx="520" cy="225" rx="42" ry="52" fill="#D8BC98"/>
+    <rect x="482" y="272" width="76" height="145" rx="10" fill="#508060"/>
+  </g>
+
+  <!-- Low contrast overlay -->
+  <rect width="800" height="600" fill="rgba(160,150,135,0.3)"/>
+
+  <!-- Grain -->
+  <rect width="800" height="600" filter="url(#grain3)" opacity="0.35"/>
+
+  <text x="760" y="585" font-family="sans-serif" font-size="11" fill="rgba(0,0,0,0.2)" text-anchor="end">DEMO</text>
+</svg>
