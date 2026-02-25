@@ -61,6 +61,7 @@ const BeforeAfterGallery = () => {
                 afterSrc={example.afterSrc}
                 beforeSrc={example.beforeSrc}
                 degradeType={example.degradeType}
+                composite={example.composite}
               />
               <p className="text-sm font-body text-muted-foreground mt-2 text-center">
                 {example.title}

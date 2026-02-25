@@ -76,6 +76,7 @@ const HeroSection = () => {
               afterSrc={current.afterSrc}
               beforeSrc={current.beforeSrc}
               degradeType={current.degradeType}
+              composite={current.composite}
               className="shadow-elevated"
             />
             <div className="flex items-center justify-between">

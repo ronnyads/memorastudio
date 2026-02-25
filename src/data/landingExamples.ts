@@ -7,15 +7,16 @@ export interface BeforeAfterExample {
   title: string;
   afterSrc: string;
   beforeSrc?: string;
-  degradeType: DegradeType;
+  degradeType?: DegradeType;
+  composite?: boolean;
   category?: string;
 }
 
 export const beforeAfterExamples: BeforeAfterExample[] = [
-  { id: "01", title: "Riscos e manchas", afterSrc: "/demo/before-after/01_after.jpg", degradeType: "scratches", category: "riscos" },
-  { id: "02", title: "Foto escura", afterSrc: "/demo/before-after/02_after.jpg", degradeType: "dark", category: "escura" },
-  { id: "03", title: "Desfoque", afterSrc: "/demo/before-after/03_after.jpg", degradeType: "blur", category: "desfoque" },
-  { id: "04", title: "Foto rasgada", afterSrc: "/demo/before-after/04_after.jpg", degradeType: "torn", category: "riscos" },
+  { id: "01", title: "P&B → Colorizada", afterSrc: "/demo/before-after/real_01.png", composite: true, category: "colorizacao" },
+  { id: "02", title: "Foto rasgada → Restaurada", afterSrc: "/demo/before-after/real_02.png", composite: true, category: "riscos" },
+  { id: "03", title: "Foto danificada → Restaurada", afterSrc: "/demo/before-after/real_03.png", composite: true, category: "riscos" },
+  { id: "04", title: "Família P&B → Colorizada", afterSrc: "/demo/before-after/real_04.png", composite: true, category: "colorizacao" },
   { id: "05", title: "P&B → Colorizada", afterSrc: "/demo/before-after/05_after.jpg", degradeType: "bw", category: "colorizacao" },
   { id: "06", title: "Baixa resolução → HD", afterSrc: "/demo/before-after/06_after.jpg", degradeType: "lowres", category: "hd4k" },
 ];
