@@ -26,7 +26,7 @@ const OrderResult = () => {
               </p>
               <h1 className="font-display text-3xl font-bold mb-2">Resultado Pronto! 🎉</h1>
               <p className="text-muted-foreground font-body text-sm">
-                Sua foto foi restaurada com sucesso
+                Identidade preservada. Restauração natural.
               </p>
             </div>
 
