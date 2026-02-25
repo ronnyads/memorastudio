@@ -1,146 +1,79 @@
 
 
-# Plano: LP com Antes/Depois Real (mesma foto) + Fallback CSS
+# Plano: Usar as 4 fotos reais de restauracao como exemplos na LP
 
 ## Problema
 
-As imagens composite geradas por IA continuam mostrando pessoas/poses diferentes nos dois lados. Isso quebra a credibilidade da LP. A solucao correta e abandonar o modelo composite e usar um sistema dual-image com fallback CSS: quando nao houver "before" real, o componente degrada o "after" com filtros CSS para simular foto antiga.
+Os exemplos de restauracao na LP usam imagens AI-generated que parecem artificiais. O usuario enviou 4 fotos reais de restauracoes profissionais (composites side-by-side) que mostram o padrao de qualidade desejado.
 
 ## Abordagem
 
-Trocar de composite (1 imagem split) para dual-image (before + after separados). O slider volta a usar duas `<img>` sobrepostas. Se `beforeSrc` estiver vazio, o slider renderiza o `afterSrc` duas vezes — no lado "Antes" aplica filtros CSS (grayscale, sepia, contrast baixo, blur leve, noise overlay via pseudo-elemento) para simular degradacao. Isso GARANTE que e sempre a mesma foto.
+Copiar as 4 imagens reais do usuario para `public/demo/before-after/` e usa-las diretamente nos exemplos de restauracao. Como sao composites (before|after lado a lado em 1 imagem), precisamos de um modo "composite" no `BeforeAfterSlider`: a imagem e carregada uma vez, o lado esquerdo (0-50%) mostra o "antes" e o lado direito (50-100%) mostra o "depois", usando `object-position` e `object-fit` para recortar cada metade.
 
 ## Mudancas
 
-### 1. Gerar 6 imagens "after" de alta qualidade
+### 1. Copiar as 4 imagens reais para o projeto
 
-Gerar via AI apenas o "depois" (foto restaurada bonita) em `public/demo/before-after/`. Sem tentar gerar splits. Cada imagem e um retrato limpo, nitido, colorido.
+- `user-uploads://image-4.png` → `public/demo/before-after/real_01.png` (mae e filho, P&B → colorizado)
+- `user-uploads://image-5.png` → `public/demo/before-after/real_02.png` (marinheiro, foto rasgada → restaurada)
+- `user-uploads://image-6.png` → `public/demo/before-after/real_03.png` (soldado, foto danificada → restaurada)
+- `user-uploads://image-7.png` → `public/demo/before-after/real_04.png` (familia asiatica, P&B → colorizada)
 
-- `01_after.jpg` — Retrato de casal, limpo e nitido
-- `02_after.jpg` — Familia (pais + criancas), cores naturais
-- `03_after.jpg` — Mae e filho, colorizado vibrante
-- `04_after.jpg` — Retrato individual, limpo
-- `05_after.jpg` — Grupo familiar, detalhado
-- `06_after.jpg` — Retrato HD nitido
+### 2. Atualizar `BeforeAfterSlider.tsx` — adicionar modo composite
 
-Sem gerar "before" — o CSS faz isso automaticamente.
+Adicionar prop `composite?: boolean`. Quando `composite=true`:
+- Uma unica imagem e carregada (`afterSrc`)
+- Lado "Antes": `<img>` com `object-fit: cover; object-position: left;` mostrando a metade esquerda
+- Lado "Depois": `<img>` com `object-fit: cover; object-position: right;` mostrando a metade direita
+- O clip-path do slider controla a divisao visivel
 
-### 2. Gerar 4 imagens "after" para temas
+Detalhes tecnicos do modo composite:
+```text
+Imagem original: [BEFORE | AFTER] (side-by-side)
 
-- `theme_ice_princess_after.jpg` — Crianca como princesa do gelo
-- `theme_astronauta_after.jpg` — Crianca como astronauta
-- `theme_safari_after.jpg` — Crianca como explorador safari
-- `theme_unicorn_after.jpg` — Crianca tema unicornio
+Container aspect-ratio: 4/3 (retrato)
 
-O "before" (original) sera a mesma imagem sem os efeitos tematicos — tambem gerada via AI, ou usada com fallback CSS (versao "normal" da crianca).
+Lado ANTES:
+  <img src={compositeSrc}
+    style="width: 200%; object-fit: cover; object-position: 0% center;"
+  />
 
-### 3. Reescrever `BeforeAfterSlider.tsx` com fallback CSS
+Lado DEPOIS:
+  <img src={compositeSrc}
+    style="width: 200%; object-fit: cover; object-position: 100% center;"
+  />
 
-Novo componente unificado que aceita:
+clip-path no "antes": inset(0 {100-position}% 0 0)
+```
+
+### 3. Atualizar `landingExamples.ts`
+
+Substituir os 4 primeiros exemplos de restauracao pelas imagens reais, usando o modo composite:
 
 ```typescript
-interface Props {
-  afterSrc: string;
-  beforeSrc?: string; // opcional — se vazio, degrada o after
-  beforeLabel?: string;
-  afterLabel?: string;
-  degradeType?: "scratches" | "dark" | "blur" | "torn" | "bw" | "lowres";
-  className?: string;
-}
+{ id: "01", title: "P&B → Colorizada", afterSrc: "/demo/before-after/real_01.png", composite: true, category: "colorizacao" },
+{ id: "02", title: "Foto rasgada → Restaurada", afterSrc: "/demo/before-after/real_02.png", composite: true, category: "riscos" },
+{ id: "03", title: "Foto danificada → Restaurada", afterSrc: "/demo/before-after/real_03.png", composite: true, category: "riscos" },
+{ id: "04", title: "Família P&B → Colorizada", afterSrc: "/demo/before-after/real_04.png", composite: true, category: "colorizacao" },
 ```
 
-Quando `beforeSrc` esta vazio, renderiza `afterSrc` no lado "Antes" com filtros CSS:
+Manter exemplos 05 e 06 com fallback CSS (degradeType) como demos adicionais.
 
-```text
-Filtros por tipo:
-- scratches: grayscale(30%) sepia(40%) contrast(0.8) + noise overlay SVG
-- dark: brightness(0.3) contrast(1.3)
-- blur: blur(2px) grayscale(20%)
-- torn: grayscale(50%) sepia(30%) + crack overlay
-- bw: grayscale(100%) contrast(0.9) sepia(15%)
-- lowres: blur(3px) + pixelate via image-rendering
-```
+Atualizar `heroExamples` para usar os 3 primeiros exemplos reais.
 
-Noise overlay: pseudo-elemento `::after` com `background-image: url(noise SVG inline)` + `mix-blend-mode: multiply`.
+### 4. Atualizar interface `BeforeAfterExample`
 
-### 4. Atualizar `landingExamples.ts`
-
-```typescript
-export interface BeforeAfterExample {
-  id: string;
-  title: string;
-  afterSrc: string;
-  beforeSrc?: string; // opcional
-  degradeType: "scratches" | "dark" | "blur" | "torn" | "bw" | "lowres";
-  category?: string;
-}
-
-export const beforeAfterExamples: BeforeAfterExample[] = [
-  { id: "01", title: "Riscos e manchas", afterSrc: "/demo/before-after/01_after.jpg", degradeType: "scratches", category: "riscos" },
-  { id: "02", title: "Foto escura", afterSrc: "/demo/before-after/02_after.jpg", degradeType: "dark", category: "escura" },
-  { id: "03", title: "Desfoque", afterSrc: "/demo/before-after/03_after.jpg", degradeType: "blur", category: "desfoque" },
-  { id: "04", title: "Foto rasgada", afterSrc: "/demo/before-after/04_after.jpg", degradeType: "torn", category: "riscos" },
-  { id: "05", title: "P&B → Colorizada", afterSrc: "/demo/before-after/05_after.jpg", degradeType: "bw", category: "colorizacao" },
-  { id: "06", title: "Baixa resolução → HD", afterSrc: "/demo/before-after/06_after.jpg", degradeType: "lowres", category: "hd4k" },
-];
-
-export const heroExamples = beforeAfterExamples.slice(0, 3);
-```
-
-### 5. Atualizar `HeroSection.tsx`
-
-- Importar `heroExamples` e o novo `BeforeAfterSlider`
-- Passar `afterSrc` + `degradeType` para cada exemplo
-- Manter botao "Proximo exemplo"
-
-### 6. Atualizar `BeforeAfterGallery.tsx`
-
-- Importar `beforeAfterExamples`
-- Usar novo `BeforeAfterSlider` com `afterSrc` + `degradeType`
-- Manter filtros por categoria
-
-### 7. Atualizar `ThemesGallery.tsx`
-
-- Para temas, usar o slider com `beforeSrc` (foto original da crianca) e `afterSrc` (versao tematica)
-- Ambas geradas via AI mas como imagens separadas
-
-### 8. Remover `CompositeBeforeAfterSlider.tsx`
-
-Nao sera mais usado. Substituido pelo novo `BeforeAfterSlider`.
-
-## Detalhe tecnico do fallback CSS
-
-```text
-┌─────────────────────────────────────────┐
-│  afterSrc (imagem unica)                │
-│                                         │
-│  Lado ANTES:              Lado DEPOIS:  │
-│  <img src={afterSrc}      <img src={afterSrc}
-│   style={degradeFilters}   (sem filtros)
-│   + noise overlay />       />           │
-│                                         │
-│  clip-path: left portion  clip-path: right
-└─────────────────────────────────────────┘
-
-Resultado: SEMPRE a mesma foto nos dois lados.
-O "antes" parece danificado via CSS puro.
-```
+Adicionar campo `composite?: boolean` na interface.
 
 ## Arquivos
 
-**Novos (7):**
-- `public/demo/before-after/01_after.jpg` a `06_after.jpg` (6 imagens)
-- Noise SVG inline (dentro do componente, sem arquivo extra)
+**Novos (4 — copias de imagens):**
+- `public/demo/before-after/real_01.png`
+- `public/demo/before-after/real_02.png`
+- `public/demo/before-after/real_03.png`
+- `public/demo/before-after/real_04.png`
 
-**Modificados (5):**
-- `src/components/landing/BeforeAfterSlider.tsx` — reescrito com fallback CSS
-- `src/data/landingExamples.ts` — novo modelo dual-image
-- `src/components/landing/HeroSection.tsx` — usar novo slider
-- `src/components/landing/BeforeAfterGallery.tsx` — usar novo slider
-- `src/components/landing/ThemesGallery.tsx` — usar novo slider com pares separados
-
-**Removidos (1):**
-- `src/components/landing/CompositeBeforeAfterSlider.tsx`
-
-**Imagens composite antigas** em `public/demo/composites/` podem ser removidas depois.
+**Modificados (2):**
+- `src/components/landing/BeforeAfterSlider.tsx` — adicionar modo composite
+- `src/data/landingExamples.ts` — usar imagens reais nos primeiros 4 exemplos
 
