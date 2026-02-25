@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 
 interface BeforeAfterSliderProps {
   beforeSrc: string;
@@ -49,6 +50,25 @@ const BeforeAfterSlider = ({
     [updatePosition]
   );
 
+  // Fallback: if no images, show elegant CTA card
+  if (!beforeSrc || !afterSrc) {
+    return (
+      <div className={`relative overflow-hidden rounded-xl ${className}`}>
+        <div className="w-full aspect-[4/3] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex flex-col items-center justify-center gap-4 p-6">
+          <p className="text-lg font-display font-semibold text-foreground text-center">
+            Veja o resultado em segundos
+          </p>
+          <Link
+            to="/pricing"
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+          >
+            Começar agora
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -58,18 +78,18 @@ const BeforeAfterSlider = ({
       onMouseLeave={handleMouseUp}
       onTouchMove={handleTouchMove}
     >
-      {/* After image (full width, background) */}
       <div className="relative w-full aspect-[4/3]">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+        {/* After image (full width, background) */}
+        <div className="absolute inset-0">
           <img src={afterSrc} alt={afterLabel} className="w-full h-full object-cover" />
         </div>
 
         {/* Before image (clipped) */}
         <div
-          className="absolute inset-0 bg-gradient-to-br from-muted to-muted/70 flex items-center justify-center"
+          className="absolute inset-0"
           style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
         >
-          <img src={beforeSrc} alt={beforeLabel} className="w-full h-full object-cover grayscale brightness-75" />
+          <img src={beforeSrc} alt={beforeLabel} className="w-full h-full object-cover" />
         </div>
 
         {/* Labels */}
