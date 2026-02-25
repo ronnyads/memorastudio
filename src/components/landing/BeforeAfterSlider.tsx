@@ -8,6 +8,7 @@ interface BeforeAfterSliderProps {
   beforeLabel?: string;
   afterLabel?: string;
   degradeType?: DegradeType;
+  composite?: boolean;
   className?: string;
 }
 
@@ -28,13 +29,14 @@ const BeforeAfterSlider = ({
   beforeLabel = "Antes",
   afterLabel = "Depois",
   degradeType = "scratches",
+  composite = false,
   className = "",
 }: BeforeAfterSliderProps) => {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
-  const useFallback = !beforeSrc;
+  const useFallback = !composite && !beforeSrc;
   const beforeImage = beforeSrc || afterSrc;
 
   const beforeStyle = useMemo(() => {
@@ -82,40 +84,69 @@ const BeforeAfterSlider = ({
       onTouchMove={handleTouchMove}
     >
       <div className="relative w-full aspect-[4/3]">
-        {/* After image (full width, background) */}
-        <div className="absolute inset-0">
-          <img src={afterSrc} alt={afterLabel} className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        {composite ? (
+          <>
+            {/* Composite mode: single image, show right half as "after" */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img
+                src={afterSrc}
+                alt={afterLabel}
+                className="h-full object-cover"
+                style={{ width: "200%", objectPosition: "100% center" }}
+                loading="lazy"
+              />
+            </div>
 
-        {/* Before image (clipped) */}
-        <div
-          className="absolute inset-0"
-          style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
-        >
-          <img
-            src={beforeImage}
-            alt={beforeLabel}
-            className="w-full h-full object-cover"
-            style={beforeStyle}
-            loading="lazy"
-          />
-          {/* Noise overlay for fallback mode */}
-          {useFallback && (
+            {/* Composite mode: show left half as "before", clipped */}
             <div
-              className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-60"
-              style={{ backgroundImage: NOISE_SVG }}
-            />
-          )}
-          {/* Vignette for fallback */}
-          {useFallback && (
+              className="absolute inset-0 overflow-hidden"
+              style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+            >
+              <img
+                src={afterSrc}
+                alt={beforeLabel}
+                className="h-full object-cover"
+                style={{ width: "200%", objectPosition: "0% center" }}
+                loading="lazy"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* After image (full width, background) */}
+            <div className="absolute inset-0">
+              <img src={afterSrc} alt={afterLabel} className="w-full h-full object-cover" loading="lazy" />
+            </div>
+
+            {/* Before image (clipped) */}
             <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
-              }}
-            />
-          )}
-        </div>
+              className="absolute inset-0"
+              style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+            >
+              <img
+                src={beforeImage}
+                alt={beforeLabel}
+                className="w-full h-full object-cover"
+                style={beforeStyle}
+                loading="lazy"
+              />
+              {useFallback && (
+                <div
+                  className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-60"
+                  style={{ backgroundImage: NOISE_SVG }}
+                />
+              )}
+              {useFallback && (
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.45) 100%)",
+                  }}
+                />
+              )}
+            </div>
+          </>
+        )}
 
         {/* Labels */}
         <span className="absolute top-3 left-3 text-xs font-body font-semibold bg-background/80 text-foreground px-2 py-1 rounded-md backdrop-blur-sm z-20">
