@@ -56,7 +56,7 @@ const Admin = () => {
       {/* Sidebar */}
       <aside className="w-64 border-r border-border/50 bg-card p-6 hidden lg:flex flex-col">
         <Link to="/" className="font-display text-xl font-bold text-gradient-gold mb-10">
-          Levres Studio
+          Memora Studio
         </Link>
 
         <nav className="space-y-2 flex-1">

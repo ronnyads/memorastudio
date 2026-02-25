@@ -2,8 +2,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Check, Sparkles, Maximize, Palette } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, Sparkles, Maximize, Palette, Plus } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef } from "react";
 
 const products = [
   {
@@ -68,7 +69,23 @@ const packages = [
   },
 ];
 
+const addons = [
+  { name: "Versão A4 para impressão", price: "15", description: "Arquivo otimizado para impressão A4" },
+  { name: "3 variações de tema", price: "25", description: "Receba 3 opções de layout diferentes" },
+  { name: "Prioridade de fila", price: "19", description: "Entrega em até 6 horas" },
+];
+
 const Pricing = () => {
+  const [searchParams] = useSearchParams();
+  const themeParam = searchParams.get("theme");
+  const themeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (themeParam && themeRef.current) {
+      themeRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [themeParam]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -97,12 +114,15 @@ const Pricing = () => {
             {products.map((product, i) => (
               <motion.div
                 key={i}
+                ref={product.name === "Foto Temática" && themeParam ? themeRef : undefined}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.15 }}
                 className={`relative bg-gradient-card rounded-xl p-8 border flex flex-col ${
                   product.popular
                     ? "border-primary/50 shadow-gold"
+                    : themeParam && product.name === "Foto Temática"
+                    ? "border-primary/50 shadow-gold ring-2 ring-primary/30"
                     : "border-border/50"
                 }`}
               >
@@ -136,14 +156,48 @@ const Pricing = () => {
                 </ul>
 
                 <Button
-                  variant={product.popular ? "gold" : "gold-outline"}
+                  variant={product.popular || (themeParam && product.name === "Foto Temática") ? "gold" : "gold-outline"}
                   className="w-full"
                   asChild
                 >
-                  <Link to={`/checkout?product=${encodeURIComponent(product.name)}&price=${product.price}`}>
+                  <Link to={`/checkout?product=${encodeURIComponent(product.name)}&price=${product.price}${themeParam && product.name === "Foto Temática" ? `&theme=${themeParam}` : ""}`}>
                     Escolher
                   </Link>
                 </Button>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Add-ons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            <h2 className="font-display text-3xl font-bold">
+              <span className="text-gradient-gold">Add-ons</span> opcionais
+            </h2>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-20">
+            {addons.map((addon, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-gradient-card rounded-xl p-6 border border-border/50 flex items-start gap-4"
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Plus className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-body text-sm font-semibold mb-1">{addon.name}</h4>
+                  <p className="text-xs text-muted-foreground font-body mb-2">{addon.description}</p>
+                  <span className="text-sm font-display font-bold text-gradient-gold">+R${addon.price}</span>
+                </div>
               </motion.div>
             ))}
           </div>
