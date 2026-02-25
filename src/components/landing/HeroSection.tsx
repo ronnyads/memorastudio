@@ -2,15 +2,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import BeforeAfterSlider from "./BeforeAfterSlider";
-import { heroRotationExamples } from "@/data/landingExamples";
+import CompositeBeforeAfterSlider from "./CompositeBeforeAfterSlider";
+import { heroComposites } from "@/data/landingExamples";
 
 const HeroSection = () => {
   const [exampleIndex, setExampleIndex] = useState(0);
-  const current = heroRotationExamples[exampleIndex];
+  const current = heroComposites[exampleIndex];
 
   const nextExample = () => {
-    setExampleIndex((prev) => (prev + 1) % heroRotationExamples.length);
+    setExampleIndex((prev) => (prev + 1) % heroComposites.length);
   };
 
   return (
@@ -65,16 +65,15 @@ const HeroSection = () => {
             </motion.div>
           </div>
 
-          {/* Right — Before/After Slider */}
+          {/* Right — Composite Slider */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
             className="flex flex-col gap-4"
           >
-            <BeforeAfterSlider
-              beforeSrc={current.before}
-              afterSrc={current.after}
+            <CompositeBeforeAfterSlider
+              compositeSrc={current.compositeSrc}
               className="shadow-elevated"
             />
             <div className="flex items-center justify-between">
