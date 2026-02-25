@@ -1,35 +1,44 @@
-// ── Composite model (new) ──────────────────────────────────
+import type { DegradeType } from "@/components/landing/BeforeAfterSlider";
 
-export interface CompositeExample {
+// ── Before/After model (dual-image with CSS fallback) ──────
+
+export interface BeforeAfterExample {
   id: string;
   title: string;
-  compositeSrc: string;
+  afterSrc: string;
+  beforeSrc?: string;
+  degradeType: DegradeType;
   category?: string;
 }
 
-export const heroComposites: CompositeExample[] = [
-  { id: "restore_01", title: "Riscos e manchas", compositeSrc: "/demo/composites/restore_01_composite.jpg" },
-  { id: "restore_02", title: "Foto escura", compositeSrc: "/demo/composites/restore_02_composite.jpg" },
-  { id: "restore_03", title: "Desfoque", compositeSrc: "/demo/composites/restore_03_composite.jpg" },
+export const beforeAfterExamples: BeforeAfterExample[] = [
+  { id: "01", title: "Riscos e manchas", afterSrc: "/demo/before-after/01_after.jpg", degradeType: "scratches", category: "riscos" },
+  { id: "02", title: "Foto escura", afterSrc: "/demo/before-after/02_after.jpg", degradeType: "dark", category: "escura" },
+  { id: "03", title: "Desfoque", afterSrc: "/demo/before-after/03_after.jpg", degradeType: "blur", category: "desfoque" },
+  { id: "04", title: "Foto rasgada", afterSrc: "/demo/before-after/04_after.jpg", degradeType: "torn", category: "riscos" },
+  { id: "05", title: "P&B → Colorizada", afterSrc: "/demo/before-after/05_after.jpg", degradeType: "bw", category: "colorizacao" },
+  { id: "06", title: "Baixa resolução → HD", afterSrc: "/demo/before-after/06_after.jpg", degradeType: "lowres", category: "hd4k" },
 ];
 
-export const beforeAfterComposites: CompositeExample[] = [
-  { id: "restore_01", title: "Riscos e manchas", compositeSrc: "/demo/composites/restore_01_composite.jpg", category: "riscos" },
-  { id: "restore_02", title: "Foto escura", compositeSrc: "/demo/composites/restore_02_composite.jpg", category: "escura" },
-  { id: "restore_03", title: "Desfoque", compositeSrc: "/demo/composites/restore_03_composite.jpg", category: "desfoque" },
-  { id: "restore_04", title: "Foto rasgada", compositeSrc: "/demo/composites/restore_04_composite.jpg", category: "riscos" },
-  { id: "restore_05", title: "P&B → Colorizada", compositeSrc: "/demo/composites/restore_05_composite.jpg", category: "colorizacao" },
-  { id: "restore_06", title: "Baixa resolução → HD", compositeSrc: "/demo/composites/restore_06_composite.jpg", category: "hd4k" },
+export const heroExamples = beforeAfterExamples.slice(0, 3);
+
+// ── Theme examples ─────────────────────────────────────────
+
+export interface ThemeExample {
+  id: string;
+  title: string;
+  afterSrc: string;
+  beforeSrc?: string;
+}
+
+export const themeExamples: ThemeExample[] = [
+  { id: "ice_princess", title: "Princesa do Gelo", afterSrc: "/demo/before-after/theme_ice_princess_after.jpg" },
+  { id: "astronauta", title: "Astronauta", afterSrc: "/demo/before-after/theme_astronauta_after.jpg" },
+  { id: "safari", title: "Safari", afterSrc: "/demo/before-after/theme_safari_after.jpg" },
+  { id: "unicorn", title: "Unicórnio", afterSrc: "/demo/before-after/theme_unicorn_after.jpg" },
 ];
 
-export const themeComposites: CompositeExample[] = [
-  { id: "ice_princess", title: "Princesa do Gelo", compositeSrc: "/demo/composites/theme_ice_princess.jpg" },
-  { id: "astronauta", title: "Astronauta", compositeSrc: "/demo/composites/theme_astronauta.jpg" },
-  { id: "safari", title: "Safari", compositeSrc: "/demo/composites/theme_safari.jpg" },
-  { id: "unicorn", title: "Unicórnio", compositeSrc: "/demo/composites/theme_unicorn.jpg" },
-];
-
-// ── Legacy exports (kept for compat) ───────────────────────
+// ── Categories ─────────────────────────────────────────────
 
 export const exampleCategories = [
   { id: "todos", label: "Todos" },
@@ -39,6 +48,8 @@ export const exampleCategories = [
   { id: "colorizacao", label: "Colorização" },
   { id: "hd4k", label: "HD/4K" },
 ];
+
+// ── Themes (emoji cards) ───────────────────────────────────
 
 export interface Theme {
   id: string;
