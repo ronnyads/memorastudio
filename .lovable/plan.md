@@ -1,113 +1,62 @@
 
 
-# Plano: Composite Before/After Slider
+# Plano: Regenerar composites de restauracao com qualidade real
 
-## Resumo
+## Problema
 
-Substituir o sistema atual de duas imagens separadas por um sistema composite (imagem unica split 50/50). Criar novo componente `CompositeBeforeAfterSlider`, gerar 10 imagens composite via AI, e atualizar hero + galeria + temas.
+As imagens composite atuais (geradas por AI) nao parecem restauracoes reais. As fotos dos dois lados sao diferentes (rostos, poses, cenarios distintos). O usuario mostrou 3 exemplos reais de como deve ser:
+
+1. **Mesma foto, mesma pessoa, mesma pose** — lado esquerdo danificado (manchas, riscos, desbotado, P&B), lado direito restaurado (limpo, colorizado, nitido)
+2. Transicao suave no meio — as duas metades se complementam perfeitamente
+3. Tipos de restauracao vistos nos exemplos:
+   - Foto com manchas/riscos/desbotada → limpa e restaurada (P&B)
+   - Foto P&B antiga com danos → colorizada com cores naturais
+   - Foto sepia/desbotada → colorizada vibrante
 
 ## Mudancas
 
-### 1. Gerar 10 imagens composite em `public/demo/composites/`
+### 1. Regenerar 6 composites de restauracao com prompts melhorados
 
-Usar o gerador de imagens (gemini-2.5-flash-image) com os prompts do usuario para criar:
+Usar o gerador de imagens com prompts muito mais especificos, inspirados nos exemplos do usuario:
 
-**Restauracao (6):**
-- `restore_01_composite.jpg` — riscos/manchas (split 50/50, mesma foto)
-- `restore_02_composite.jpg` — foto escura vs corrigida
-- `restore_03_composite.jpg` — desfocada vs nitida
-- `restore_04_composite.jpg` — rasgada vs reconstruida
-- `restore_05_composite.jpg` — P&B vs colorizada
-- `restore_06_composite.jpg` — baixa res vs HD
+**restore_01_composite.jpg** — Casal anos 80, foto P&B com manchas e riscos no lado esquerdo, mesma foto restaurada limpa no lado direito. Mesma pessoa, mesma pose, split vertical.
 
-**Temas (4):**
-- `theme_ice_princess.jpg` — crianca normal vs princesa do gelo
-- `theme_astronauta.jpg` — crianca vs astronauta
-- `theme_safari.jpg` — crianca vs explorador safari
-- `theme_unicorn.jpg` — crianca vs tema unicornio
+**restore_02_composite.jpg** — Familia antiga (pais + 2 criancas), P&B desbotado com manchas amareladas no lado esquerdo, colorizado com cores naturais no lado direito. Mesma composicao.
 
-Todas 1600x600, split vertical 50/50, mesma pessoa/pose/enquadramento.
+**restore_03_composite.jpg** — Mae e filho, foto sepia desbotada no lado esquerdo, colorizada vibrante no lado direito. Mesma pose, mesmo enquadramento.
 
-### 2. Criar `src/components/landing/CompositeBeforeAfterSlider.tsx`
+**restore_04_composite.jpg** — Retrato individual, foto rasgada/amassada com vincos no lado esquerdo, reconstruida limpa no lado direito.
 
-Componente que recebe `compositeSrc` (imagem unica). Duas camadas CSS com `background-size: 200% 100%`:
-- Camada "antes": `background-position: left center`
-- Camada "depois": `background-position: right center`
-- Handle com pointer events (mouse + touch)
-- `aspect-[8/3]` para proporcao consistente
-- Input range oculto para acessibilidade
-- Fallback elegante com CTA se `compositeSrc` vazio
-- Labels "Antes"/"Depois" como badges
+**restore_05_composite.jpg** — Foto de grupo familiar, P&B granulado no esquerdo, colorizado detalhado no direito.
 
-### 3. Atualizar `src/data/landingExamples.ts`
+**restore_06_composite.jpg** — Foto pixelada/baixa resolucao no esquerdo, nitida HD no direito.
 
-Adicionar novos exports mantendo os antigos para compatibilidade:
+### 2. Regenerar 4 composites de temas
 
-```typescript
-export const heroComposites = [
-  { id: "restore_01", title: "Riscos e manchas", compositeSrc: "/demo/composites/restore_01_composite.jpg" },
-  { id: "restore_02", title: "Foto escura", compositeSrc: "/demo/composites/restore_02_composite.jpg" },
-  { id: "restore_03", title: "Desfoque", compositeSrc: "/demo/composites/restore_03_composite.jpg" },
-];
+Manter os mesmos temas mas com prompts que garantam consistencia de identidade entre as duas metades.
 
-export const beforeAfterComposites = [ /* 6 items */ ];
-export const themeComposites = [ /* 4 items */ ];
-```
+### 3. Nenhuma mudanca de codigo
 
-### 4. Atualizar `HeroSection.tsx`
+O componente `CompositeBeforeAfterSlider` e os dados em `landingExamples.ts` ja estao corretos. Apenas os arquivos JPG em `public/demo/composites/` precisam ser substituidos.
 
-- Importar `heroComposites` em vez de `heroRotationExamples`
-- Usar `CompositeBeforeAfterSlider` em vez de `BeforeAfterSlider`
-- Manter rotacao com useState + botao "Proximo exemplo"
+## Arquivos modificados (10 — apenas imagens)
 
-### 5. Atualizar `BeforeAfterGallery.tsx`
+- `public/demo/composites/restore_01_composite.jpg`
+- `public/demo/composites/restore_02_composite.jpg`
+- `public/demo/composites/restore_03_composite.jpg`
+- `public/demo/composites/restore_04_composite.jpg`
+- `public/demo/composites/restore_05_composite.jpg`
+- `public/demo/composites/restore_06_composite.jpg`
+- `public/demo/composites/theme_ice_princess.jpg`
+- `public/demo/composites/theme_astronauta.jpg`
+- `public/demo/composites/theme_safari.jpg`
+- `public/demo/composites/theme_unicorn.jpg`
 
-- Importar `beforeAfterComposites`
-- Usar `CompositeBeforeAfterSlider` para cada card
-- Manter filtros por categoria (adaptar categorias aos novos IDs)
+## Detalhe dos prompts
 
-### 6. Atualizar `ThemesGallery.tsx`
-
-- Importar `themeComposites`
-- Para cada tema, renderizar `CompositeBeforeAfterSlider` mostrando original vs arte tematica
-- Manter CTA "Quero esse tema"
-
-## Arquivos
-
-**Novos (11):**
-- `public/demo/composites/restore_01_composite.jpg` a `restore_06_composite.jpg` (6)
-- `public/demo/composites/theme_ice_princess.jpg`, `theme_astronauta.jpg`, `theme_safari.jpg`, `theme_unicorn.jpg` (4)
-- `src/components/landing/CompositeBeforeAfterSlider.tsx`
-
-**Modificados (4):**
-- `src/data/landingExamples.ts`
-- `src/components/landing/HeroSection.tsx`
-- `src/components/landing/BeforeAfterGallery.tsx`
-- `src/components/landing/ThemesGallery.tsx`
-
-**Sem mudanca:**
-- `BeforeAfterSlider.tsx` — mantido como legado
-
-## Detalhe tecnico do slider
-
-```text
-Imagem composite (1600x600):
-+------------------+------------------+
-|                  |                  |
-|   ANTES (left    |   DEPOIS (right  |
-|   half of img)   |   half of img)   |
-|                  |                  |
-+------------------+------------------+
-
-Camada CSS "antes":
-  background-size: 200% 100%
-  background-position: 0% 50%
-  → mostra so a metade esquerda
-
-Camada CSS "depois":
-  background-size: 200% 100%
-  background-position: 100% 50%
-  clip-path: inset(0 0 0 {value}%)
-  → mostra so a metade direita, cortada pelo slider
-```
+Cada prompt enfatizara:
+- "identical person, identical pose, identical framing on both sides"
+- "left side: damaged/old version — right side: restored version"
+- "photorealistic, studio portrait style, split-screen composite"
+- Inspirado nos exemplos reais do usuario (fotos de familia vintage)
 
