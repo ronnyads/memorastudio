@@ -7,20 +7,20 @@ export interface LandingExample {
 }
 
 export const heroRotationExamples = [
-  { id: "01", title: "Riscos e manchas", category: "riscos", before: "/demo/before_01.svg", after: "/demo/after_01.svg" },
-  { id: "02", title: "Foto escura", category: "escura", before: "/demo/before_02.svg", after: "/demo/after_02.svg" },
-  { id: "03", title: "Desfoque", category: "desfoque", before: "/demo/before_03.svg", after: "/demo/after_03.svg" },
+  { id: "01", title: "Riscos e manchas", category: "riscos", before: "/demo/before_01.jpg", after: "/demo/after_01.jpg" },
+  { id: "02", title: "Foto escura", category: "escura", before: "/demo/before_02.jpg", after: "/demo/after_02.jpg" },
+  { id: "03", title: "Desfoque", category: "desfoque", before: "/demo/before_03.jpg", after: "/demo/after_03.jpg" },
 ];
 
 export const heroBeforeAfter = heroRotationExamples[0];
 
 export const landingExamples: LandingExample[] = [
-  { id: 1, category: "riscos", beforeSrc: "/demo/before_01.svg", afterSrc: "/demo/after_01.svg", label: "Foto com riscos profundos" },
-  { id: 2, category: "escura", beforeSrc: "/demo/before_02.svg", afterSrc: "/demo/after_02.svg", label: "Foto escurecida pelo tempo" },
-  { id: 3, category: "desfoque", beforeSrc: "/demo/before_03.svg", afterSrc: "/demo/after_03.svg", label: "Foto desfocada restaurada" },
-  { id: 4, category: "colorizacao", beforeSrc: "/demo/before_01.svg", afterSrc: "/demo/after_01.svg", label: "Colorização de foto P&B" },
-  { id: 5, category: "hd4k", beforeSrc: "/demo/before_03.svg", afterSrc: "/demo/after_03.svg", label: "Upscale HD para impressão" },
-  { id: 6, category: "riscos", beforeSrc: "/demo/before_02.svg", afterSrc: "/demo/after_02.svg", label: "Restauração de foto rasgada" },
+  { id: 1, category: "riscos", beforeSrc: "/demo/before_01.jpg", afterSrc: "/demo/after_01.jpg", label: "Foto com riscos profundos" },
+  { id: 2, category: "escura", beforeSrc: "/demo/before_02.jpg", afterSrc: "/demo/after_02.jpg", label: "Foto escurecida pelo tempo" },
+  { id: 3, category: "desfoque", beforeSrc: "/demo/before_03.jpg", afterSrc: "/demo/after_03.jpg", label: "Foto desfocada restaurada" },
+  { id: 4, category: "colorizacao", beforeSrc: "/demo/before_01.jpg", afterSrc: "/demo/after_01.jpg", label: "Colorização de foto P&B" },
+  { id: 5, category: "hd4k", beforeSrc: "/demo/before_03.jpg", afterSrc: "/demo/after_03.jpg", label: "Upscale HD para impressão" },
+  { id: 6, category: "riscos", beforeSrc: "/demo/before_02.jpg", afterSrc: "/demo/after_02.jpg", label: "Restauração de foto rasgada" },
 ];
 
 export const exampleCategories = [
