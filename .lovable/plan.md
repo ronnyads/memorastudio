@@ -1,79 +1,222 @@
 
 
-# Plano: Usar as 4 fotos reais de restauracao como exemplos na LP
+# Plano: Fluxo Completo do Cliente — Pagamento → Upload → Entrega
 
-## Problema
+## Escopo
 
-Os exemplos de restauracao na LP usam imagens AI-generated que parecem artificiais. O usuario enviou 4 fotos reais de restauracoes profissionais (composites side-by-side) que mostram o padrao de qualidade desejado.
+Implementar o fluxo SaaS completo do Memora Studio com a regra "pagamento antes de tudo". Atualmente tudo e mock/estatico. Precisamos: banco de dados real, storage, rotas corretas, bloqueios de seguranca, polling de status, e painel admin funcional.
 
-## Abordagem
+## Fases de Implementacao
 
-Copiar as 4 imagens reais do usuario para `public/demo/before-after/` e usa-las diretamente nos exemplos de restauracao. Como sao composites (before|after lado a lado em 1 imagem), precisamos de um modo "composite" no `BeforeAfterSlider`: a imagem e carregada uma vez, o lado esquerdo (0-50%) mostra o "antes" e o lado direito (50-100%) mostra o "depois", usando `object-position` e `object-fit` para recortar cada metade.
+Este e um projeto grande. Vou dividir em **3 fases** para manter cada entrega testavel.
 
-## Mudancas
+---
 
-### 1. Copiar as 4 imagens reais para o projeto
+### FASE 1 — Banco de Dados + Storage + Rotas
 
-- `user-uploads://image-4.png` → `public/demo/before-after/real_01.png` (mae e filho, P&B → colorizado)
-- `user-uploads://image-5.png` → `public/demo/before-after/real_02.png` (marinheiro, foto rasgada → restaurada)
-- `user-uploads://image-6.png` → `public/demo/before-after/real_03.png` (soldado, foto danificada → restaurada)
-- `user-uploads://image-7.png` → `public/demo/before-after/real_04.png` (familia asiatica, P&B → colorizada)
+**1.1 Migracao SQL — criar tabelas**
 
-### 2. Atualizar `BeforeAfterSlider.tsx` — adicionar modo composite
+```sql
+-- Enums
+CREATE TYPE order_status AS ENUM ('created','paid','awaiting_upload','processing','ready','delivered','needs_revision','cancelled');
+CREATE TYPE payment_status AS ENUM ('pending','approved','rejected','cancelled','refunded');
+CREATE TYPE product_type AS ENUM ('restore','upscale','theme');
+CREATE TYPE job_status AS ENUM ('queued','processing','done','failed','needs_review');
 
-Adicionar prop `composite?: boolean`. Quando `composite=true`:
-- Uma unica imagem e carregada (`afterSrc`)
-- Lado "Antes": `<img>` com `object-fit: cover; object-position: left;` mostrando a metade esquerda
-- Lado "Depois": `<img>` com `object-fit: cover; object-position: right;` mostrando a metade direita
-- O clip-path do slider controla a divisao visivel
+-- orders
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number TEXT UNIQUE NOT NULL DEFAULT 'MEM-' || substr(gen_random_uuid()::text, 1, 8),
+  public_access_token UUID DEFAULT gen_random_uuid(),
+  customer_email TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT,
+  product_type product_type NOT NULL,
+  status order_status NOT NULL DEFAULT 'created',
+  payment_status payment_status NOT NULL DEFAULT 'pending',
+  total NUMERIC NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Detalhes tecnicos do modo composite:
-```text
-Imagem original: [BEFORE | AFTER] (side-by-side)
+-- order_assets
+CREATE TABLE order_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+  input_url TEXT,
+  output_url TEXT,
+  preview_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
-Container aspect-ratio: 4/3 (retrato)
+-- order_brief
+CREATE TABLE order_brief (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  data JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Lado ANTES:
-  <img src={compositeSrc}
-    style="width: 200%; object-fit: cover; object-position: 0% center;"
-  />
+-- jobs
+CREATE TABLE jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+  type product_type NOT NULL,
+  status job_status NOT NULL DEFAULT 'queued',
+  attempts INT DEFAULT 0,
+  logs JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-Lado DEPOIS:
-  <img src={compositeSrc}
-    style="width: 200%; object-fit: cover; object-position: 100% center;"
-  />
-
-clip-path no "antes": inset(0 {100-position}% 0 0)
+-- payments
+CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+  gateway TEXT NOT NULL DEFAULT 'manual',
+  payment_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  details JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-### 3. Atualizar `landingExamples.ts`
+**1.2 RLS Policies**
 
-Substituir os 4 primeiros exemplos de restauracao pelas imagens reais, usando o modo composite:
+- `orders`: SELECT publico via `public_access_token` (para clientes sem login acessarem seu pedido via token no URL). Admin full access via `has_role()`.
+- `order_assets`, `order_brief`, `jobs`, `payments`: mesma logica — acesso via token do order + admin full.
+- INSERT em orders: permitir para `anon` (checkout cria pedido sem login).
+- Storage bucket `order-files`: privado, upload via signed URL gerada por edge function.
 
-```typescript
-{ id: "01", title: "P&B → Colorizada", afterSrc: "/demo/before-after/real_01.png", composite: true, category: "colorizacao" },
-{ id: "02", title: "Foto rasgada → Restaurada", afterSrc: "/demo/before-after/real_02.png", composite: true, category: "riscos" },
-{ id: "03", title: "Foto danificada → Restaurada", afterSrc: "/demo/before-after/real_03.png", composite: true, category: "riscos" },
-{ id: "04", title: "Família P&B → Colorizada", afterSrc: "/demo/before-after/real_04.png", composite: true, category: "colorizacao" },
+**1.3 Storage**
+
+- Criar bucket `order-files` (privado)
+- RLS: admin pode tudo, clientes fazem upload/download via signed URLs
+
+**1.4 Rotas**
+
+Atualizar `App.tsx`:
 ```
+/pedido/:id            → OrderHub (novo)
+/pedido/:id/enviar     → OrderUpload (existente, refatorado)
+/pedido/:id/status     → OrderStatus (existente, refatorado)
+/pedido/:id/resultado  → OrderResult (existente, refatorado)
+/acompanhar            → TrackOrder (novo)
+```
+Manter rotas antigas `/order/...` como redirect para `/pedido/...`.
 
-Manter exemplos 05 e 06 com fallback CSS (degradeType) como demos adicionais.
+---
 
-Atualizar `heroExamples` para usar os 3 primeiros exemplos reais.
+### FASE 2 — Checkout Real + Upload + Briefing
 
-### 4. Atualizar interface `BeforeAfterExample`
+**2.1 Checkout (`/checkout`)**
 
-Adicionar campo `composite?: boolean` na interface.
+Refatorar `Checkout.tsx`:
+- Formulario: email, nome, telefone (opcional), produto, preco
+- Ao "pagar" (simulado por agora — integracao Stripe depois):
+  - INSERT em `orders` com `payment_status='approved'`, `status='awaiting_upload'`
+  - INSERT em `payments`
+  - Redirecionar para `/pedido/:id/enviar?token=...`
+
+**2.2 Upload + Briefing (`/pedido/:id/enviar`)**
+
+Refatorar `OrderUpload.tsx`:
+- Buscar order do banco via `id` + `token` (query param)
+- Se `payment_status != approved`: mostrar tela bloqueada "Pagamento pendente"
+- Upload: drag&drop, preview, validacao (jpg/png, max 15MB, alerta se < 800px)
+- Upload para Storage via edge function que gera signed URL
+- Briefing dinamico por `product_type` (ja existe a UI, conectar ao banco)
+- Ao enviar:
+  - Salvar `order_assets.input_url`
+  - Salvar `order_brief.data`
+  - Criar `job` com status `queued`
+  - Atualizar `orders.status = 'processing'`
+  - Redirecionar para `/pedido/:id/status?token=...`
+
+**2.3 Edge Function `upload-file`**
+
+- Recebe order_id + token
+- Valida token
+- Gera signed upload URL para o bucket
+- Retorna URL
+
+---
+
+### FASE 3 — Status + Resultado + Admin
+
+**3.1 Order Hub (`/pedido/:id`)**
+
+Nova pagina simples:
+- Buscar order via token
+- Mostrar resumo + status atual
+- Botoes dinamicos conforme estado
+
+**3.2 Status (`/pedido/:id/status`)**
+
+Refatorar `OrderStatus.tsx`:
+- Buscar order + job do banco
+- Timeline dinamica baseada em `orders.status`
+- Polling a cada 5s via `useQuery` com `refetchInterval`
+- Quando `status = ready`: CTA "Ver resultado"
+
+**3.3 Resultado (`/pedido/:id/resultado`)**
+
+Refatorar `OrderResult.tsx`:
+- Buscar order + assets do banco
+- Before/After slider usando `input_url` e `output_url`
+- Download via signed URL (edge function)
+- Botao "Solicitar Ajuste": atualiza `orders.status = 'needs_revision'`
+
+**3.4 Edge Function `download-file`**
+
+- Recebe order_id + token
+- Valida token + status
+- Gera signed download URL
+- Retorna URL
+
+**3.5 Admin (`/admin`)**
+
+Refatorar `Admin.tsx`:
+- Proteger com auth check (`has_role(uid, 'admin')`)
+- Listar orders reais do banco
+- Ver detalhes: input, briefing, status
+- Acoes: atualizar status, subir output manualmente, reprocessar
+- Upload de output: admin sobe o resultado final para o bucket
+
+**3.6 Track Order (`/acompanhar`)**
+
+Pagina simples:
+- Campo email + order_number
+- Busca o pedido e redireciona para `/pedido/:id?token=...`
+
+---
 
 ## Arquivos
 
-**Novos (4 — copias de imagens):**
-- `public/demo/before-after/real_01.png`
-- `public/demo/before-after/real_02.png`
-- `public/demo/before-after/real_03.png`
-- `public/demo/before-after/real_04.png`
+**Novos (~8):**
+- `supabase/migrations/XXXX_create_order_tables.sql`
+- `supabase/functions/upload-file/index.ts`
+- `supabase/functions/download-file/index.ts`
+- `src/pages/OrderHub.tsx`
+- `src/pages/TrackOrder.tsx`
+- `src/hooks/useOrder.ts` (hook para buscar order via token)
+- `src/lib/orderTypes.ts` (tipos TypeScript para orders)
 
-**Modificados (2):**
-- `src/components/landing/BeforeAfterSlider.tsx` — adicionar modo composite
-- `src/data/landingExamples.ts` — usar imagens reais nos primeiros 4 exemplos
+**Modificados (~6):**
+- `src/App.tsx` — novas rotas
+- `src/pages/Checkout.tsx` — criar order no banco
+- `src/pages/OrderUpload.tsx` — conectar ao banco + storage
+- `src/pages/OrderStatus.tsx` — polling real
+- `src/pages/OrderResult.tsx` — download real + revisao
+- `src/pages/Admin.tsx` — dados reais + acoes
+- `supabase/config.toml` — configurar edge functions
+
+## Ordem de Implementacao
+
+Comecarei pela **Fase 1** (banco + storage + rotas), depois **Fase 2** (checkout + upload), depois **Fase 3** (status + resultado + admin). Cada fase sera testavel independentemente.
+
+## Nota sobre Pagamentos
+
+O checkout sera implementado com simulacao (pagamento aprovado imediatamente). A integracao real com Stripe/MercadoPago pode ser feita depois habilitando o conector Stripe — a estrutura do banco ja suporta isso com a tabela `payments`.
 
