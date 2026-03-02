@@ -6,13 +6,14 @@ import { Check, Clock, Image, Cpu, Download, Loader2, Eye } from "lucide-react";
 import { useOrder } from "@/hooks/useOrder";
 import { orderStatusLabels } from "@/lib/orderTypes";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const OrderStatus = () => {
   const { order, isLoading, error, token } = useOrder();
+  const queryClient = useQueryClient();
 
-  // Polling every 5s
+  // Polling every 5s — invalidate main query on status change
   useQuery({
     queryKey: ["order-poll", order?.id],
     queryFn: async () => {
@@ -21,6 +22,9 @@ const OrderStatus = () => {
         .select("status")
         .eq("id", order!.id)
         .single();
+      if (data && order && data.status !== order.status) {
+        queryClient.invalidateQueries({ queryKey: ["order", order.id, token] });
+      }
       return data;
     },
     enabled: !!order && !["ready", "delivered", "cancelled"].includes(order.status),
