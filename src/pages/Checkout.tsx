@@ -2,12 +2,22 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Lock, CreditCard } from "lucide-react";
+import { Lock, CreditCard, Loader2 } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import type { ProductType } from "@/lib/orderTypes";
+
+const productNameToType: Record<string, ProductType> = {
+  "Restauração": "restore",
+  "Restauração + HD/4K": "upscale",
+  "Foto Temática": "theme",
+  "Pacote 5 Fotos": "restore",
+  "Pacote 10 Fotos": "restore",
+};
 
 const Checkout = () => {
   const [searchParams] = useSearchParams();
@@ -17,22 +27,54 @@ const Checkout = () => {
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name) {
-      toast.error("Preencha todos os campos");
+      toast.error("Preencha todos os campos obrigatórios");
       return;
     }
     setLoading(true);
 
-    // Simulating payment — real integration with Stripe/MercadoPago needed
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const productType = productNameToType[product] || "restore";
+
+      // Create order
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          customer_email: email.trim().toLowerCase(),
+          customer_name: name.trim(),
+          customer_phone: phone.trim() || null,
+          product_type: productType,
+          status: "awaiting_upload",
+          payment_status: "approved",
+          total: parseFloat(price),
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create payment record
+      await supabase.from("payments").insert({
+        order_id: order.id,
+        gateway: "simulated",
+        payment_id: `SIM-${Date.now()}`,
+        status: "approved",
+        details: { product, price, simulated: true },
+      });
+
       toast.success("Pagamento confirmado!");
-      navigate(`/order/demo-123/upload?product=${encodeURIComponent(product)}`);
-    }, 2000);
+      navigate(`/pedido/${order.id}/enviar?token=${order.public_access_token}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao processar pagamento. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,10 +83,7 @@ const Checkout = () => {
 
       <section className="pt-32 pb-24">
         <div className="container mx-auto px-6 max-w-lg">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="text-center mb-10">
               <h1 className="font-display text-3xl font-bold mb-2">Finalizar Pedido</h1>
               <p className="text-muted-foreground font-body text-sm">
@@ -69,23 +108,36 @@ const Checkout = () => {
             {/* Form */}
             <form onSubmit={handleCheckout} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="font-body text-sm">Nome completo</Label>
+                <Label htmlFor="name" className="font-body text-sm">Nome completo *</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Seu nome"
                   className="bg-secondary border-border"
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="font-body text-sm">E-mail</Label>
+                <Label htmlFor="email" className="font-body text-sm">E-mail *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
+                  className="bg-secondary border-border"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="font-body text-sm">Telefone (opcional)</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
                   className="bg-secondary border-border"
                 />
               </div>
@@ -102,7 +154,11 @@ const Checkout = () => {
                 className="w-full text-base py-6"
                 disabled={loading}
               >
-                <CreditCard className="w-5 h-5 mr-2" />
+                {loading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <CreditCard className="w-5 h-5 mr-2" />
+                )}
                 {loading ? "Processando..." : `Pagar R$${price}`}
               </Button>
             </form>

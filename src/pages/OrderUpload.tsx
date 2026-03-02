@@ -2,8 +2,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Upload as UploadIcon, Image, Send } from "lucide-react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { Upload as UploadIcon, Image, Send, Lock, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useState, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -13,16 +13,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { themes } from "@/data/landingExamples";
+import { useOrder } from "@/hooks/useOrder";
+import { supabase } from "@/integrations/supabase/client";
+import { productTypeLabels } from "@/lib/orderTypes";
+
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 
 const OrderUpload = () => {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const product = searchParams.get("product") || "Restauração";
+  const { order, isLoading, error, token } = useOrder();
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Restoration briefing
   const [fidelity, setFidelity] = useState("maxima");
@@ -37,7 +41,7 @@ const OrderUpload = () => {
   const [usage, setUsage] = useState("");
 
   // Theme briefing
-  const [themeName, setThemeName] = useState(searchParams.get("theme") || "");
+  const [themeName, setThemeName] = useState("");
   const [personName, setPersonName] = useState("");
   const [age, setAge] = useState("");
   const [date, setDate] = useState("");
@@ -45,17 +49,28 @@ const OrderUpload = () => {
   const [phrase, setPhrase] = useState("");
   const [format, setFormat] = useState("story");
 
-  const isTheme = product.toLowerCase().includes("temática") || product.toLowerCase().includes("tema");
-  const isHD = product.toLowerCase().includes("hd") || product.toLowerCase().includes("4k");
-
   const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith("image/")) {
-      toast.error("Envie apenas imagens");
+    if (!f.type.match(/^image\/(jpeg|png|heic|heif)$/i) && !f.type.startsWith("image/")) {
+      toast.error("Envie apenas imagens (JPG, PNG)");
+      return;
+    }
+    if (f.size > MAX_FILE_SIZE) {
+      toast.error("Arquivo muito grande. Máximo 15MB.");
       return;
     }
     setFile(f);
     const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.onload = (e) => {
+      setPreview(e.target?.result as string);
+      // Check resolution
+      const img = new window.Image();
+      img.onload = () => {
+        if (img.width < 800 && img.height < 800) {
+          toast.warning("Imagem com resolução baixa. O resultado pode ser limitado.");
+        }
+      };
+      img.src = e.target?.result as string;
+    };
     reader.readAsDataURL(f);
   }, []);
 
@@ -65,14 +80,140 @@ const OrderUpload = () => {
     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
   }, [handleFile]);
 
-  const handleSubmit = () => {
-    if (!file) {
+  const buildBriefData = () => {
+    if (!order) return {};
+    if (order.product_type === "theme") {
+      return { themeName, personName, age, date, colors, phrase, format };
+    }
+    if (order.product_type === "upscale") {
+      return { usage, notes: briefing };
+    }
+    return {
+      fidelity,
+      removeSpots,
+      reduceNoise,
+      recoverColors,
+      improveSharpness,
+      upscaleHD,
+      notes: briefing,
+    };
+  };
+
+  const handleSubmit = async () => {
+    if (!file || !order) {
       toast.error("Envie uma foto primeiro");
       return;
     }
-    toast.success("Foto enviada para processamento!");
-    navigate(`/order/${id}/status`);
+    setSubmitting(true);
+
+    try {
+      // Upload file to storage via edge function
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${order.id}/input.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.functions.invoke("upload-file", {
+        body: { order_id: order.id, token: token, file_path: filePath },
+      });
+
+      if (uploadError) throw uploadError;
+
+      // Upload the actual file using the signed URL
+      const { signedUrl } = uploadData;
+      const uploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+
+      // Get public URL for reference
+      const inputUrl = `order-files/${filePath}`;
+
+      // Save asset
+      await supabase.from("order_assets").insert({
+        order_id: order.id,
+        input_url: inputUrl,
+      });
+
+      // Save brief
+      await supabase.from("order_brief").insert({
+        order_id: order.id,
+        data: buildBriefData(),
+      });
+
+      // Create job
+      await supabase.from("jobs").insert({
+        order_id: order.id,
+        type: order.product_type,
+        status: "queued",
+      });
+
+      // Update order status
+      await supabase
+        .from("orders")
+        .update({ status: "processing" })
+        .eq("id", order.id);
+
+      toast.success("Foto enviada para processamento!");
+      navigate(`/pedido/${order.id}/status?token=${token}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao enviar. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <section className="pt-32 pb-24 text-center">
+          <h1 className="font-display text-3xl font-bold">Pedido não encontrado</h1>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Payment gate
+  if (order.payment_status !== "approved") {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <section className="pt-32 pb-24">
+          <div className="container mx-auto px-6 max-w-lg text-center">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Lock className="w-8 h-8 text-destructive" />
+              </div>
+              <h1 className="font-display text-3xl font-bold mb-4">Pagamento Pendente</h1>
+              <p className="text-muted-foreground font-body mb-8">
+                O upload só é liberado após a confirmação do pagamento.
+              </p>
+              <Button variant="gold" asChild>
+                <a href={`/checkout?product=${encodeURIComponent(productTypeLabels[order.product_type])}&price=${order.total}`}>
+                  Voltar ao Pagamento
+                </a>
+              </Button>
+            </motion.div>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isTheme = order.product_type === "theme";
+  const isHD = order.product_type === "upscale";
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,11 +224,11 @@ const OrderUpload = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="text-center mb-10">
               <p className="text-primary font-body text-sm tracking-[0.3em] uppercase mb-2">
-                Pedido #{id}
+                {order.order_number}
               </p>
               <h1 className="font-display text-3xl font-bold mb-2">Envie sua Foto</h1>
               <p className="text-muted-foreground font-body text-sm">
-                {product} — pagamento confirmado ✓
+                {productTypeLabels[order.product_type]} — pagamento confirmado ✓
               </p>
             </div>
 
@@ -104,7 +245,7 @@ const OrderUpload = () => {
               <input
                 id="file-input"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/heic,image/heif"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
@@ -122,7 +263,7 @@ const OrderUpload = () => {
                   </div>
                   <div>
                     <p className="font-body font-medium">Arraste sua foto aqui</p>
-                    <p className="text-sm text-muted-foreground font-body">ou clique para selecionar</p>
+                    <p className="text-sm text-muted-foreground font-body">JPG, PNG ou HEIC — máx 15MB</p>
                   </div>
                 </div>
               )}
@@ -156,9 +297,7 @@ const OrderUpload = () => {
                     <div className="space-y-2">
                       <Label className="font-body text-sm">Formato</Label>
                       <Select value={format} onValueChange={setFormat}>
-                        <SelectTrigger className="bg-secondary border-border">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="story">Story (1080x1920)</SelectItem>
                           <SelectItem value="a4">A4 (impressão)</SelectItem>
@@ -192,9 +331,7 @@ const OrderUpload = () => {
                   <div className="space-y-2">
                     <Label className="font-body text-sm">Para qual uso?</Label>
                     <Select value={usage} onValueChange={setUsage}>
-                      <SelectTrigger className="bg-secondary border-border">
-                        <SelectValue placeholder="Selecione o uso" />
-                      </SelectTrigger>
+                      <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o uso" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="quadro">Quadro / Moldura</SelectItem>
                         <SelectItem value="album">Álbum de fotos</SelectItem>
@@ -204,17 +341,11 @@ const OrderUpload = () => {
                   </div>
                   <div className="space-y-2">
                     <Label className="font-body text-sm">Instruções adicionais</Label>
-                    <Textarea
-                      value={briefing}
-                      onChange={(e) => setBriefing(e.target.value)}
-                      placeholder="Algo mais que devemos saber?"
-                      className="bg-secondary border-border min-h-[80px]"
-                    />
+                    <Textarea value={briefing} onChange={(e) => setBriefing(e.target.value)} placeholder="Algo mais que devemos saber?" className="bg-secondary border-border min-h-[80px]" />
                   </div>
                 </div>
               ) : (
-              <div className="space-y-5">
-                  {/* Fidelity Level */}
+                <div className="space-y-5">
                   <div className="space-y-3">
                     <Label className="font-body text-sm font-semibold">Nível de fidelidade</Label>
                     <RadioGroup value={fidelity} onValueChange={setFidelity} className="flex flex-col gap-3">
@@ -224,26 +355,19 @@ const OrderUpload = () => {
                           <Label htmlFor="maxima" className="font-body text-sm font-medium cursor-pointer">
                             🔒 Fidelidade Máxima <span className="text-xs text-primary ml-1">(recomendado)</span>
                           </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Preserva fielmente rosto, traços e identidade. Restauração conservadora e natural.
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Preserva fielmente rosto, traços e identidade.</p>
                         </div>
                       </div>
                       <div className="flex items-start space-x-3 p-3 rounded-lg border border-border">
                         <RadioGroupItem value="aprimorar" id="aprimorar" className="mt-0.5" />
                         <div>
-                          <Label htmlFor="aprimorar" className="font-body text-sm font-medium cursor-pointer">
-                            ✨ Aprimorar leve
-                          </Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Permite melhorias sutis além da restauração (suavização, realce).
-                          </p>
+                          <Label htmlFor="aprimorar" className="font-body text-sm font-medium cursor-pointer">✨ Aprimorar leve</Label>
+                          <p className="text-xs text-muted-foreground mt-1">Permite melhorias sutis além da restauração.</p>
                         </div>
                       </div>
                     </RadioGroup>
                   </div>
 
-                  {/* Restoration Checklist */}
                   <div className="space-y-3">
                     <Label className="font-body text-sm font-semibold">O que restaurar</Label>
                     <div className="flex flex-col gap-2.5">
@@ -253,11 +377,11 @@ const OrderUpload = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="noise" checked={reduceNoise} onCheckedChange={(v) => setReduceNoise(!!v)} />
-                        <Label htmlFor="noise" className="font-body text-sm cursor-pointer">Reduzir ruído/granulação (sem plastificar)</Label>
+                        <Label htmlFor="noise" className="font-body text-sm cursor-pointer">Reduzir ruído/granulação</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="colors" checked={recoverColors} onCheckedChange={(v) => setRecoverColors(!!v)} />
-                        <Label htmlFor="colors" className="font-body text-sm cursor-pointer">Recuperar cores (correção natural)</Label>
+                        <Label htmlFor="colors" className="font-body text-sm cursor-pointer">Recuperar cores</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="sharpness" checked={improveSharpness} onCheckedChange={(v) => setImproveSharpness(!!v)} />
@@ -265,38 +389,37 @@ const OrderUpload = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Checkbox id="upscale" checked={upscaleHD} onCheckedChange={(v) => setUpscaleHD(!!v)} />
-                        <Label htmlFor="upscale" className="font-body text-sm cursor-pointer">Upscale HD/4K (se incluído no plano)</Label>
+                        <Label htmlFor="upscale" className="font-body text-sm cursor-pointer">Upscale HD/4K</Label>
                       </div>
                     </div>
                   </div>
 
-                  {/* Identity Notice */}
                   {fidelity === "maxima" && (
                     <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                       <p className="text-xs text-muted-foreground font-body leading-relaxed">
                         <span className="font-semibold text-foreground">🔒 Modo Fidelidade Máxima:</span>{" "}
-                        Traços faciais, idade, expressão e características naturais serão preservados exatamente. 
-                        Nenhuma alteração criativa será aplicada — apenas restauração e correção.
+                        Traços faciais serão preservados exatamente. Apenas restauração e correção.
                       </p>
                     </div>
                   )}
 
                   <div className="space-y-2">
                     <Label className="font-body text-sm">Instruções adicionais</Label>
-                    <Textarea
-                      value={briefing}
-                      onChange={(e) => setBriefing(e.target.value)}
-                      placeholder="Descreva detalhes específicos, áreas de foco..."
-                      className="bg-secondary border-border min-h-[80px]"
-                    />
+                    <Textarea value={briefing} onChange={(e) => setBriefing(e.target.value)} placeholder="Descreva detalhes específicos..." className="bg-secondary border-border min-h-[80px]" />
                   </div>
                 </div>
               )}
             </div>
 
-            <Button variant="gold" size="lg" className="w-full text-base py-6" onClick={handleSubmit}>
-              <Send className="w-5 h-5 mr-2" />
-              Enviar para Processamento
+            <Button
+              variant="gold"
+              size="lg"
+              className="w-full text-base py-6"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Send className="w-5 h-5 mr-2" />}
+              {submitting ? "Enviando..." : "Enviar para Processamento"}
             </Button>
           </motion.div>
         </div>
