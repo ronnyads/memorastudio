@@ -4,30 +4,19 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Check, Clock, Image, Cpu, Download, Loader2, Eye } from "lucide-react";
 import { useOrder } from "@/hooks/useOrder";
-import { orderStatusLabels } from "@/lib/orderTypes";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const OrderStatus = () => {
-  const { order, isLoading, error, token } = useOrder();
-  const queryClient = useQueryClient();
+  const { order, isLoading, error, refetchOrder, orderId, isLegacyAccess } = useOrder();
 
-  // Polling every 5s — invalidate main query on status change
   useQuery({
-    queryKey: ["order-poll", order?.id],
+    queryKey: ["order-status-poll", orderId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("status")
-        .eq("id", order!.id)
-        .single();
-      if (data && order && data.status !== order.status) {
-        queryClient.invalidateQueries({ queryKey: ["order", order.id, token] });
-      }
-      return data;
+      const result = await refetchOrder();
+      return result.data;
     },
-    enabled: !!order && !["ready", "delivered", "cancelled"].includes(order.status),
+    enabled: !!orderId && !!order && !["ready", "delivered", "cancelled"].includes(order.status) && !isLegacyAccess,
     refetchInterval: 5000,
   });
 
@@ -44,14 +33,13 @@ const OrderStatus = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <section className="pt-32 pb-24 text-center">
-          <h1 className="font-display text-3xl font-bold">Pedido não encontrado</h1>
+          <h1 className="font-display text-3xl font-bold">Pedido nao encontrado</h1>
         </section>
         <Footer />
       </div>
     );
   }
 
-  const statusOrder = ["paid", "awaiting_upload", "processing", "ready"] as const;
   const currentIdx = (() => {
     if (order.status === "delivered" || order.status === "ready") return 3;
     if (order.status === "processing") return 2;
@@ -65,8 +53,6 @@ const OrderStatus = () => {
     { icon: Cpu, label: "Processando" },
     { icon: Download, label: "Pronto para download" },
   ];
-
-  const tokenParam = token ? `?token=${token}` : "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,7 +70,7 @@ const OrderStatus = () => {
                 <Clock className="w-4 h-4" />
                 {order.status === "ready" || order.status === "delivered"
                   ? "Resultado pronto!"
-                  : "Tempo estimado: 15-30 minutos"}
+                  : "Tempo estimado: ate 10 minutos"}
               </p>
             </div>
 
@@ -135,8 +121,8 @@ const OrderStatus = () => {
 
             {(order.status === "ready" || order.status === "delivered") && (
               <Button variant="gold" size="lg" className="w-full" asChild>
-                <Link to={`/pedido/${order.id}/resultado${tokenParam}`}>
-                  <Eye className="w-5 h-5 mr-2" /> Ver Resultado
+                <Link to={`/pedido/${order.id}/resultado`}>
+                  <Eye className="w-5 h-5 mr-2" /> Ver resultado
                 </Link>
               </Button>
             )}

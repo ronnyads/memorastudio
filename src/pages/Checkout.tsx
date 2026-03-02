@@ -26,6 +26,19 @@ const productNameToType: Record<string, ProductType> = {
   "Pacote 10 Fotos": "restore",
 };
 
+type CardPaymentSubmitData = {
+  token?: string;
+  payment_method_id?: string;
+  installments?: number;
+  issuer_id?: string;
+  payer?: {
+    identification?: {
+      type?: string;
+      number?: string;
+    };
+  };
+};
+
 const Checkout = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -60,7 +73,26 @@ const Checkout = () => {
     setShowPayment(true);
   };
 
-  const handlePaymentSubmit = async (formData: any) => {
+  const sendOtpAndRedirect = async (orderId: string, targetPath: string, orderNumber?: string | null) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const otpResponse = await supabase.functions.invoke("request-order-login", {
+      body: {
+        email: normalizedEmail,
+        order_number: orderNumber || null,
+        redirect_path: targetPath,
+      },
+    });
+
+    if (otpResponse.error) {
+      toast.warning("Pagamento confirmado, mas não foi possível enviar o acesso automático. Solicite o link na próxima tela.");
+    } else {
+      toast.success("Pagamento confirmado. Enviamos um link de acesso para seu e-mail.");
+    }
+
+    navigate(`/acesso-pedido?redirect=${encodeURIComponent(targetPath)}&email=${encodeURIComponent(normalizedEmail)}`);
+  };
+
+  const handlePaymentSubmit = async (formData: CardPaymentSubmitData) => {
     setLoading(true);
     setPaymentError(null);
 
@@ -92,26 +124,32 @@ const Checkout = () => {
       }
 
       if (data?.status === "approved") {
-        toast.success("Pagamento aprovado!");
-        navigate(`/pedido/${data.order_id}/enviar?token=${data.public_access_token}`);
+        await sendOtpAndRedirect(
+          data.order_id,
+          `/pedido/${data.order_id}/enviar`,
+          data.order_number ?? null,
+        );
       } else if (data?.status === "rejected") {
         setPaymentError(
-          getRejectMessage(data.status_detail) || "Pagamento recusado. Tente outro cartão."
+          getRejectMessage(data.status_detail) || "Pagamento recusado. Tente outro cartão.",
         );
         setLoading(false);
       } else {
-        // pending / in_process
         toast.info("Pagamento em processamento...");
-        navigate(`/pedido/${data.order_id}/status?token=${data.public_access_token}`);
+        await sendOtpAndRedirect(
+          data.order_id,
+          `/pedido/${data.order_id}/status`,
+          data.order_number ?? null,
+        );
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setPaymentError("Erro ao processar pagamento. Tente novamente.");
       setLoading(false);
     }
   };
 
-  const handlePaymentError = (error: any) => {
+  const handlePaymentError = (error: unknown) => {
     console.error("CardPayment error:", error);
     setPaymentError("Erro no formulário de pagamento. Verifique os dados.");
   };
@@ -137,7 +175,6 @@ const Checkout = () => {
               </div>
             )}
 
-            {/* Order Summary */}
             <div className="bg-gradient-card rounded-xl p-6 border border-border/50 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-body text-sm text-muted-foreground">Serviço</span>
@@ -152,7 +189,6 @@ const Checkout = () => {
             </div>
 
             {!showPayment ? (
-              /* Step 1: Personal info */
               <form onSubmit={handleContinueToPayment} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="font-body text-sm">Nome completo *</Label>
@@ -205,7 +241,6 @@ const Checkout = () => {
                 </Button>
               </form>
             ) : (
-              /* Step 2: Card Payment Brick */
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-sm font-body text-muted-foreground mb-4">
                   <CheckCircle className="w-4 h-4 text-primary" />

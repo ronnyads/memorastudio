@@ -13,8 +13,8 @@ Deno.serve(async (req) => {
   try {
     const { order_id, token, file_path } = await req.json();
 
-    if (!order_id || !file_path) {
-      return new Response(JSON.stringify({ error: "Missing order_id or file_path" }), {
+    if (!order_id || !file_path || !token) {
+      return new Response(JSON.stringify({ error: "Missing order_id, token or file_path" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -25,28 +25,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Validate token
-    if (token) {
-      const { data: order, error } = await supabase
-        .from("orders")
-        .select("id, status")
-        .eq("id", order_id)
-        .eq("public_access_token", token)
-        .single();
+    // Validate token (required)
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("id, status")
+      .eq("id", order_id)
+      .eq("public_access_token", token)
+      .single();
 
-      if (error || !order) {
-        return new Response(JSON.stringify({ error: "Invalid token" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (error || !order) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      if (!["ready", "delivered"].includes(order.status)) {
-        return new Response(JSON.stringify({ error: "Result not ready" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!["ready", "delivered"].includes(order.status)) {
+      return new Response(JSON.stringify({ error: "Result not ready" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Strip bucket prefix if present

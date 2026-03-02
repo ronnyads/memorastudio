@@ -10,24 +10,27 @@ import { useOrder } from "@/hooks/useOrder";
 import { supabase } from "@/integrations/supabase/client";
 
 const OrderResult = () => {
-  const { order, assets, isLoading, error, token } = useOrder();
+  const { order, assets, isLoading, error } = useOrder();
   const [feedback, setFeedback] = useState("");
   const [rating, setRating] = useState(0);
   const [revisionNote, setRevisionNote] = useState("");
   const [showRevision, setShowRevision] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [requestingRevision, setRequestingRevision] = useState(false);
+
+  const hasOutput = assets[0]?.output_url;
 
   const handleDownload = async () => {
-    if (!order || !assets[0]?.output_url) return;
+    if (!order || !hasOutput) return;
     setDownloading(true);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("download-file", {
-        body: { order_id: order.id, token, file_path: assets[0].output_url },
+      const { data, error: fnError } = await supabase.functions.invoke("request-order-download-url", {
+        body: { order_id: order.id },
       });
-      if (fnError) throw fnError;
+      if (fnError || !data?.signedUrl) throw fnError || new Error("No signed URL");
 
-      window.open(data.signedUrl, "_blank");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
       toast.success("Download iniciado!");
     } catch {
       toast.error("Erro ao gerar link de download.");
@@ -42,24 +45,22 @@ const OrderResult = () => {
       return;
     }
 
-    try {
-      await supabase
-        .from("orders")
-        .update({ status: "needs_revision" })
-        .eq("id", order.id);
-
-      await supabase.from("jobs").insert({
+    setRequestingRevision(true);
+    const { error: fnError } = await supabase.functions.invoke("request-order-revision", {
+      body: {
         order_id: order.id,
-        type: order.product_type,
-        status: "needs_review",
-        logs: [{ type: "revision_request", note: revisionNote, at: new Date().toISOString() }],
-      });
+        note: revisionNote.trim(),
+      },
+    });
+    setRequestingRevision(false);
 
-      toast.success("Solicitação de ajuste enviada!");
-      setShowRevision(false);
-    } catch {
+    if (fnError) {
       toast.error("Erro ao solicitar ajuste.");
+      return;
     }
+
+    toast.success("Solicitacao de ajuste enviada!");
+    setShowRevision(false);
   };
 
   if (isLoading) {
@@ -75,14 +76,12 @@ const OrderResult = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <section className="pt-32 pb-24 text-center">
-          <h1 className="font-display text-3xl font-bold">Pedido não encontrado</h1>
+          <h1 className="font-display text-3xl font-bold">Pedido nao encontrado</h1>
         </section>
         <Footer />
       </div>
     );
   }
-
-  const hasOutput = assets[0]?.output_url;
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,24 +95,18 @@ const OrderResult = () => {
                 {order.order_number}
               </p>
               <h1 className="font-display text-3xl font-bold mb-2">
-                {hasOutput ? "Resultado Pronto! 🎉" : "Aguardando resultado..."}
+                {hasOutput ? "Resultado pronto!" : "Aguardando resultado..."}
               </h1>
               <p className="text-muted-foreground font-body text-sm">
-                Identidade preservada. Restauração natural.
+                Identidade preservada com acabamento natural.
               </p>
             </div>
 
             <div className="bg-gradient-card rounded-xl p-8 border border-border/50 mb-8">
               <div className="aspect-[4/3] rounded-lg bg-muted/30 flex items-center justify-center border border-border/30 mb-6">
-                {hasOutput ? (
-                  <p className="text-muted-foreground font-body text-sm">
-                    Resultado disponível para download
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground font-body text-sm">
-                    O resultado ainda está sendo processado
-                  </p>
-                )}
+                <p className="text-muted-foreground font-body text-sm">
+                  {hasOutput ? "Resultado disponivel para download" : "O resultado ainda esta sendo processado"}
+                </p>
               </div>
 
               <div className="flex gap-4">
@@ -129,14 +122,14 @@ const OrderResult = () => {
                 <Button
                   variant="gold-outline"
                   onClick={() => setShowRevision(!showRevision)}
-                  disabled={order.status === "needs_revision"}
+                  disabled={requestingRevision || order.status === "needs_revision"}
                 >
                   <RefreshCw className="w-5 h-5 mr-2" />
-                  {order.status === "needs_revision" ? "Ajuste solicitado" : "Solicitar Ajuste"}
+                  {order.status === "needs_revision" ? "Ajuste solicitado" : "Solicitar ajuste"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground font-body mt-3 text-center">
-                1 revisão gratuita incluída
+                1 revisao gratuita incluida
               </p>
             </div>
 
@@ -150,22 +143,21 @@ const OrderResult = () => {
                 <Textarea
                   value={revisionNote}
                   onChange={(e) => setRevisionNote(e.target.value)}
-                  placeholder="Descreva o que precisa mudar..."
+                  placeholder="Descreva o ajuste desejado..."
                   className="bg-secondary border-border"
                 />
-                <Button variant="gold" className="w-full" onClick={handleRevision}>
-                  Enviar Solicitação
+                <Button variant="gold" className="w-full" onClick={handleRevision} disabled={requestingRevision}>
+                  {requestingRevision ? "Enviando..." : "Enviar solicitacao"}
                 </Button>
               </motion.div>
             )}
 
-            {/* Feedback */}
             <div className="bg-gradient-card rounded-xl p-6 border border-border/50 space-y-4">
               <h3 className="font-display text-lg font-semibold">Avalie o resultado</h3>
               <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s} onClick={() => setRating(s)}>
-                    <Star className={`w-6 h-6 transition-colors ${s <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setRating(star)}>
+                    <Star className={`w-6 h-6 transition-colors ${star <= rating ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                   </button>
                 ))}
               </div>
@@ -175,8 +167,12 @@ const OrderResult = () => {
                 placeholder="Conte o que achou do resultado..."
                 className="bg-secondary border-border"
               />
-              <Button variant="secondary" className="w-full" onClick={() => toast.success("Obrigado pelo feedback!")}>
-                Enviar Feedback
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => toast.success("Obrigado pelo feedback!")}
+              >
+                Enviar feedback
               </Button>
             </div>
           </motion.div>

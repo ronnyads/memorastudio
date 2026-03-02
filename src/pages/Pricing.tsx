@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 const products = [
   {
     icon: Sparkles,
+    sku: "restore_basic",
     name: "Restauração",
     price: "29",
     description: "Restauração profissional com naturalidade",
@@ -23,6 +24,7 @@ const products = [
   },
   {
     icon: Maximize,
+    sku: "restore_upscale",
     name: "Restauração + HD/4K",
     price: "49",
     description: "Restauração completa + upscale para impressão",
@@ -37,6 +39,7 @@ const products = [
   },
   {
     icon: Palette,
+    sku: "themed_photo",
     name: "Foto Temática",
     price: "39",
     description: "Transforme em arte para aniversários e datas",
@@ -54,6 +57,7 @@ const products = [
 
 const packages = [
   {
+    sku: "package_5",
     name: "Pacote 5 Fotos",
     discount: "15%",
     description: "Escolha qualquer combinação de serviços",
@@ -61,6 +65,7 @@ const packages = [
     price: "123",
   },
   {
+    sku: "package_10",
     name: "Pacote 10 Fotos",
     discount: "25%",
     description: "Máxima economia para projetos grandes",
@@ -160,7 +165,7 @@ const Pricing = () => {
                   className="w-full"
                   asChild
                 >
-                  <Link to={`/checkout?product=${encodeURIComponent(product.name)}&price=${product.price}${themeParam && product.name === "Foto Temática" ? `&theme=${themeParam}` : ""}`}>
+                  <Link to={`/checkout?sku=${product.sku}&product=${encodeURIComponent(product.name)}${themeParam && product.name === "Foto Temática" ? `&theme=${themeParam}` : ""}`}>
                     Escolher
                   </Link>
                 </Button>
@@ -236,7 +241,7 @@ const Pricing = () => {
                   </span>
                 </div>
                 <Button variant="gold-outline" className="w-full" asChild>
-                  <Link to={`/checkout?product=${encodeURIComponent(pkg.name)}&price=${pkg.price}`}>
+                  <Link to={`/checkout?sku=${pkg.sku}&product=${encodeURIComponent(pkg.name)}`}>
                     Escolher Pacote
                   </Link>
                 </Button>
@@ -252,3 +257,4 @@ const Pricing = () => {
 };
 
 export default Pricing;
+

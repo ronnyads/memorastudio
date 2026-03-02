@@ -18,10 +18,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { productTypeLabels } from "@/lib/orderTypes";
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const productTypeToSku: Record<string, string> = {
+  restore: "restore_basic",
+  upscale: "restore_upscale",
+  theme: "themed_photo",
+};
 
 const OrderUpload = () => {
   const navigate = useNavigate();
-  const { order, isLoading, error, token } = useOrder();
+  const { order, isLoading, error, isLegacyAccess } = useOrder();
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -107,12 +112,13 @@ const OrderUpload = () => {
     setSubmitting(true);
 
     try {
-      // Upload file to storage via edge function
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${order.id}/input.${fileExt}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.functions.invoke("upload-file", {
-        body: { order_id: order.id, token: token, file_path: filePath },
+      // Get signed URL from secure endpoint
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
+      if (!fileExt) {
+        throw new Error("Invalid file extension");
+      }
+      const { data: uploadData, error: uploadError } = await supabase.functions.invoke("upload-order-input-url", {
+        body: { order_id: order.id, file_extension: fileExt },
       });
 
       if (uploadError) throw uploadError;
@@ -126,36 +132,18 @@ const OrderUpload = () => {
       });
       if (!uploadRes.ok) throw new Error("Upload failed");
 
-      // Get public URL for reference
-      const inputUrl = `order-files/${filePath}`;
-
-      // Save asset
-      await supabase.from("order_assets").insert({
-        order_id: order.id,
-        input_url: inputUrl,
+      // Persist brief + enqueue job in backend
+      const { error: finalizeError } = await supabase.functions.invoke("finalize-order-upload", {
+        body: {
+          order_id: order.id,
+          input_path: uploadData.path,
+          brief_data: buildBriefData(),
+        },
       });
-
-      // Save brief
-      await supabase.from("order_brief").insert({
-        order_id: order.id,
-        data: buildBriefData(),
-      });
-
-      // Create job
-      await supabase.from("jobs").insert({
-        order_id: order.id,
-        type: order.product_type,
-        status: "queued",
-      });
-
-      // Update order status
-      await supabase
-        .from("orders")
-        .update({ status: "processing" })
-        .eq("id", order.id);
+      if (finalizeError) throw finalizeError;
 
       toast.success("Foto enviada para processamento!");
-      navigate(`/pedido/${order.id}/status?token=${token}`);
+      navigate(`/pedido/${order.id}/status`);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao enviar. Tente novamente.");
@@ -184,6 +172,28 @@ const OrderUpload = () => {
     );
   }
 
+  if (isLegacyAccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <section className="pt-32 pb-24">
+          <div className="container mx-auto px-6 max-w-lg text-center">
+            <h1 className="font-display text-3xl font-bold mb-4">Sessao necessaria</h1>
+            <p className="text-muted-foreground font-body mb-8">
+              Para enviar fotos agora e necessario acessar com login por email.
+            </p>
+            <Button variant="gold" asChild>
+              <a href={`/acesso-pedido?redirect=${encodeURIComponent(`/pedido/${order.id}/enviar`)}`}>
+                Fazer login para continuar
+              </a>
+            </Button>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
+
   // Payment gate
   if (order.payment_status !== "approved") {
     return (
@@ -200,7 +210,7 @@ const OrderUpload = () => {
                 O upload só é liberado após a confirmação do pagamento.
               </p>
               <Button variant="gold" asChild>
-                <a href={`/checkout?product=${encodeURIComponent(productTypeLabels[order.product_type])}&price=${order.total}`}>
+                <a href={`/checkout?sku=${productTypeToSku[order.product_type] ?? "restore_basic"}&product=${encodeURIComponent(productTypeLabels[order.product_type])}`}>
                   Voltar ao Pagamento
                 </a>
               </Button>

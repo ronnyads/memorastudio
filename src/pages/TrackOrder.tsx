@@ -5,41 +5,55 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { Search, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuthSession } from "@/hooks/useAuthSession";
 
 const TrackOrder = () => {
-  const [email, setEmail] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { session, user, isLoading } = useAuthSession();
+
+  useEffect(() => {
+    if (!isLoading && !session) {
+      navigate(`/acesso-pedido?redirect=${encodeURIComponent("/acompanhar")}`, { replace: true });
+    }
+  }, [isLoading, session, navigate]);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !orderNumber) {
-      toast.error("Preencha e-mail e número do pedido");
+    if (!orderNumber.trim()) {
+      toast.error("Preencha o numero do pedido.");
       return;
     }
-    setLoading(true);
 
+    setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, public_access_token")
-      .eq("customer_email", email.trim().toLowerCase())
+      .select("id")
+      .eq("customer_email", (user?.email || "").toLowerCase())
       .eq("order_number", orderNumber.trim().toUpperCase())
       .maybeSingle();
-
     setLoading(false);
 
-    if (error || !data) {
-      toast.error("Pedido não encontrado. Verifique os dados.");
+    if (error || !data?.id) {
+      toast.error("Pedido nao encontrado para esta conta.");
       return;
     }
 
-    navigate(`/pedido/${data.id}?token=${data.public_access_token}`);
+    navigate(`/pedido/${data.id}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,24 +64,13 @@ const TrackOrder = () => {
             <div className="text-center mb-10">
               <h1 className="font-display text-3xl font-bold mb-2">Acompanhar Pedido</h1>
               <p className="text-muted-foreground font-body text-sm">
-                Insira seu e-mail e código do pedido
+                Conta autenticada: {user?.email}
               </p>
             </div>
 
             <form onSubmit={handleTrack} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="font-body text-sm">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="bg-secondary border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="order" className="font-body text-sm">Número do Pedido</Label>
+                <Label htmlFor="order" className="font-body text-sm">Numero do pedido</Label>
                 <Input
                   id="order"
                   value={orderNumber}
@@ -76,9 +79,22 @@ const TrackOrder = () => {
                   className="bg-secondary border-border"
                 />
               </div>
+
               <Button type="submit" variant="gold" size="lg" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Search className="w-5 h-5 mr-2" />}
-                Buscar Pedido
+                Buscar pedido
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate("/acesso-pedido", { replace: true });
+                }}
+              >
+                Trocar conta
               </Button>
             </form>
           </motion.div>

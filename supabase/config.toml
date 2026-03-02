@@ -14,3 +14,27 @@ verify_jwt = false
 
 [functions.process-payment]
 verify_jwt = false
+
+[functions.request-order-login]
+verify_jwt = false
+
+[functions.get-order-portal-data]
+verify_jwt = true
+
+[functions.upload-order-input-url]
+verify_jwt = true
+
+[functions.finalize-order-upload]
+verify_jwt = true
+
+[functions.request-order-download-url]
+verify_jwt = true
+
+[functions.legacy-order-access]
+verify_jwt = false
+
+[functions.request-order-revision]
+verify_jwt = true
+
+[functions.process-jobs]
+verify_jwt = false
