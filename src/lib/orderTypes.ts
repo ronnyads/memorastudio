@@ -6,7 +6,7 @@ export type JobStatus = 'queued' | 'processing' | 'done' | 'failed' | 'needs_rev
 export interface Order {
   id: string;
   order_number: string;
-  public_access_token: string;
+  public_access_token?: string | null;
   customer_email: string;
   customer_name: string;
   customer_phone: string | null;
@@ -44,6 +44,11 @@ export interface Job {
   logs: unknown[];
   created_at: string;
   updated_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  last_error?: string | null;
+  locked_by?: string | null;
+  next_retry_at?: string | null;
 }
 
 export interface Payment {
