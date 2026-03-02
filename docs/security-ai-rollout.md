@@ -14,7 +14,9 @@ Configure in Supabase Edge Functions:
 
 1. Apply migration `20260302113000_security_hardening_and_ai_pipeline.sql`.
 2. Deploy edge functions:
-   - `create-order-simulated`
+   - `create-mp-preference`
+   - `process-payment`
+   - `mp-webhook`
    - `request-order-login`
    - `get-order-portal-data`
    - `upload-order-input-url`
@@ -28,7 +30,7 @@ Configure in Supabase Edge Functions:
 ## Post-deploy smoke checklist
 
 1. Anonymous user cannot query `orders`, `order_assets`, `order_brief`, `jobs`, `payments`.
-2. Checkout creates order via `create-order-simulated`.
+2. Checkout Mercado Pago cria pedido sem regressão.
 3. OTP login email is sent by `request-order-login`.
 4. Authenticated user can open only their own order in `/pedido/:id`.
 5. Upload flow works:
