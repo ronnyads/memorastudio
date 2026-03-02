@@ -2,9 +2,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Lock, CreditCard, Loader2 } from "lucide-react";
+import { Lock, CreditCard, Loader2, AlertCircle } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -24,11 +24,18 @@ const Checkout = () => {
   const navigate = useNavigate();
   const product = searchParams.get("product") || "Restauração";
   const price = searchParams.get("price") || "29";
+  const errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (errorParam === "payment_failed") {
+      toast.error("O pagamento não foi aprovado. Tente novamente.");
+    }
+  }, [errorParam]);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,38 +48,29 @@ const Checkout = () => {
     try {
       const productType = productNameToType[product] || "restore";
 
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
+      const { data, error } = await supabase.functions.invoke("create-mp-preference", {
+        body: {
+          product,
+          price,
           customer_email: email.trim().toLowerCase(),
           customer_name: name.trim(),
           customer_phone: phone.trim() || null,
           product_type: productType,
-          status: "awaiting_upload",
-          payment_status: "approved",
-          total: parseFloat(price),
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create payment record
-      await supabase.from("payments").insert({
-        order_id: order.id,
-        gateway: "simulated",
-        payment_id: `SIM-${Date.now()}`,
-        status: "approved",
-        details: { product, price, simulated: true },
+        },
       });
 
-      toast.success("Pagamento confirmado!");
-      navigate(`/pedido/${order.id}/enviar?token=${order.public_access_token}`);
-    } catch (err) {
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (!data?.init_point) {
+        throw new Error("URL de pagamento não recebida");
+      }
+
+      // Redirect to Mercado Pago checkout
+      window.location.href = data.init_point;
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao processar pagamento. Tente novamente.");
-    } finally {
+      toast.error("Erro ao iniciar pagamento. Tente novamente.");
       setLoading(false);
     }
   };
@@ -87,9 +85,16 @@ const Checkout = () => {
             <div className="text-center mb-10">
               <h1 className="font-display text-3xl font-bold mb-2">Finalizar Pedido</h1>
               <p className="text-muted-foreground font-body text-sm">
-                Pagamento seguro e rápido
+                Pagamento seguro via Mercado Pago
               </p>
             </div>
+
+            {errorParam === "payment_failed" && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 mb-6 flex items-center gap-3 text-sm font-body text-destructive">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                O pagamento não foi aprovado. Por favor, tente novamente.
+              </div>
+            )}
 
             {/* Order Summary */}
             <div className="bg-gradient-card rounded-xl p-6 border border-border/50 mb-8">
@@ -144,7 +149,7 @@ const Checkout = () => {
 
               <div className="bg-muted/50 rounded-lg p-4 flex items-center gap-3 text-sm font-body text-muted-foreground">
                 <Lock className="w-4 h-4 text-primary flex-shrink-0" />
-                Pagamento processado com segurança. Seus dados estão protegidos.
+                Você será redirecionado ao Mercado Pago para concluir o pagamento com segurança.
               </div>
 
               <Button
@@ -159,7 +164,7 @@ const Checkout = () => {
                 ) : (
                   <CreditCard className="w-5 h-5 mr-2" />
                 )}
-                {loading ? "Processando..." : `Pagar R$${price}`}
+                {loading ? "Redirecionando..." : `Pagar R$${price}`}
               </Button>
             </form>
           </motion.div>
