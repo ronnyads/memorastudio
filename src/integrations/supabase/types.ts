@@ -14,6 +14,197 @@ export type Database = {
   }
   public: {
     Tables: {
+      jobs: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          id: string
+          logs: Json | null
+          order_id: string
+          status: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["product_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          logs?: Json | null
+          order_id: string
+          status?: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["product_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          logs?: Json | null
+          order_id?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          type?: Database["public"]["Enums"]["product_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_assets: {
+        Row: {
+          created_at: string | null
+          id: string
+          input_url: string | null
+          order_id: string
+          output_url: string | null
+          preview_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          input_url?: string | null
+          order_id: string
+          output_url?: string | null
+          preview_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          input_url?: string | null
+          order_id?: string
+          output_url?: string | null
+          preview_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_assets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_brief: {
+        Row: {
+          created_at: string | null
+          data: Json
+          id: string
+          order_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json
+          id?: string
+          order_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json
+          id?: string
+          order_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_brief_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          order_number: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          product_type: Database["public"]["Enums"]["product_type"]
+          public_access_token: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          order_number?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          product_type: Database["public"]["Enums"]["product_type"]
+          public_access_token?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          order_number?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          product_type?: Database["public"]["Enums"]["product_type"]
+          public_access_token?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          gateway: string
+          id: string
+          order_id: string
+          payment_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          gateway?: string
+          id?: string
+          order_id: string
+          payment_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          gateway?: string
+          id?: string
+          order_id?: string
+          payment_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -50,6 +241,23 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      job_status: "queued" | "processing" | "done" | "failed" | "needs_review"
+      order_status:
+        | "created"
+        | "paid"
+        | "awaiting_upload"
+        | "processing"
+        | "ready"
+        | "delivered"
+        | "needs_revision"
+        | "cancelled"
+      payment_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+        | "refunded"
+      product_type: "restore" | "upscale" | "theme"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -178,6 +386,25 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      job_status: ["queued", "processing", "done", "failed", "needs_review"],
+      order_status: [
+        "created",
+        "paid",
+        "awaiting_upload",
+        "processing",
+        "ready",
+        "delivered",
+        "needs_revision",
+        "cancelled",
+      ],
+      payment_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled",
+        "refunded",
+      ],
+      product_type: ["restore", "upscale", "theme"],
     },
   },
 } as const
